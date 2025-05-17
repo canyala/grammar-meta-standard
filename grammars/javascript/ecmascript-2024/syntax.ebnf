@@ -1,0 +1,59 @@
+(* JavaScript v2024 Syntax Grammar *)
+
+program
+  = { statement } ;
+
+statement
+  = variable-statement
+  | expression-statement
+  | if-statement
+  | while-statement
+  | for-statement
+  | function-declaration
+  | block
+  | do-expression ; (* NEW in v2024 *)
+
+block
+  = '{' { statement } '}' ;
+
+variable-statement
+  = ('let' | 'const' | 'var') identifier [ '=' expression ] ';' ;
+
+expression-statement
+  = expression ';' ;
+
+expression
+  = literal
+  | identifier
+  | expression binary-operator expression
+  | function-call ;
+
+function-call
+  = identifier '(' argument-list? ')' ;
+
+argument-list
+  = expression { ',' expression } ;
+
+function-declaration
+  = 'function' identifier '(' parameter-list? ')' block ;
+
+parameter-list
+  = identifier { ',' identifier } ;
+
+if-statement
+  = 'if' '(' expression ')' statement [ 'else' statement ] ;
+
+while-statement
+  = 'while' '(' expression ')' statement ;
+
+for-statement
+  = 'for' '(' [ expression ] ';' [ expression ] ';' [ expression ] ')' statement ;
+
+do-expression
+  = 'do' block ; (* NEW in v2024 *)
+
+literal
+  = numeric-literal | string-literal | 'true' | 'false' | 'null' ;
+
+binary-operator
+  = '+' | '-' | '*' | '/' | '%' | '==' | '!=' | '===' | '!==' | '<' | '>' | '<=' | '>=' ;

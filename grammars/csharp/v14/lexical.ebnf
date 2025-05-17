@@ -1,4 +1,4 @@
-(* C# 13 Lexical Grammar *)
+(* C# 14 Lexical Grammar *)
 
 identifier
   = letter { letter | digit } ;
@@ -24,7 +24,7 @@ multi-line-comment
 string-literal
   = regular-string
   | verbatim-string
-  | raw-string (* NEW in v13 *) ;
+  | raw-string ; (* NEW in v13 *)
 
 regular-string
   = '"' { character | escape-sequence } '"' ;
@@ -36,7 +36,7 @@ raw-string
   = triple-quote { character } triple-quote ;
 
 triple-quote
-  = '"""' (* NEW in v13 *) ;
+  = '"""' ;
 
 character-literal
   = ''' ( character | escape-sequence ) ''' ;
@@ -53,7 +53,7 @@ null-literal
 keyword
   = 'class' | 'struct' | 'interface' | 'enum'
   | 'public' | 'private' | 'protected' | 'internal'
-  | 'if' | 'else' | 'for' | 'while' | 'return' ;
+  | 'required' | 'scoped' ; (* NEW in v14 *)
 
 literal
   = boolean-literal | null-literal | integer-literal | string-literal | character-literal ;

@@ -1,4 +1,4 @@
-(* C# 13 Syntax Grammar *)
+(* C# 14 Syntax Grammar *)
 
 compilation-unit
   = { using-directive } { namespace-member-declaration } ;
@@ -29,7 +29,11 @@ class-declaration
 class-member-declaration
   = method-declaration
   | field-declaration
-  | constructor-declaration ;
+  | constructor-declaration
+  | required-member ; (* NEW in v14 *)
+
+required-member
+  = 'required' type identifier ';' ;
 
 method-declaration
   = attributes? modifiers? type identifier
@@ -72,7 +76,7 @@ modifiers
   = modifier { modifier } ;
 
 modifier
-  = 'public' | 'private' | 'static' | 'readonly' ;
+  = 'public' | 'private' | 'static' | 'readonly' | 'scoped' ; (* NEW in v14 *)
 
 expression
   = assignment-expression ;
