@@ -1,0 +1,49 @@
+(* C# 12 Syntax Grammar — Preliminary Draft *)
+
+compilation-unit
+  = { using-directive } { type-declaration } ;
+
+using-directive
+  = 'using' identifier ';' ;
+
+type-declaration
+  = class-declaration | struct-declaration ;
+
+class-declaration
+  = 'class' identifier '{' { class-member-declaration } '}' ;
+
+class-member-declaration
+  = method-declaration | field-declaration ;
+
+method-declaration
+  = 'public' type identifier '(' [ parameter-list ] ')' block ;
+
+parameter-list
+  = parameter { ',' parameter } ;
+
+parameter
+  = type identifier ;
+
+field-declaration
+  = type identifier ';' ;
+
+type
+  = 'int' | 'string' | 'bool' | identifier ;
+
+block
+  = '{' { statement } '}' ;
+
+statement
+  = if-statement | expression-statement ;
+
+if-statement
+  = 'if' '(' expression ')' statement [ 'else' statement ] ;
+
+expression-statement
+  = expression ';' ;
+
+expression
+  = identifier '=' expression
+  | identifier '+' identifier
+  | literal
+  | identifier ;

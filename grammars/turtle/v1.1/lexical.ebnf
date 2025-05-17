@@ -1,27 +1,3 @@
-turtleDoc	::=	statement*
-statement	::=	directive | triples '.'
-directive	::=	prefixID | base | sparqlPrefix | sparqlBase
-prefixID	::=	'@prefix' PNAME_NS IRIREF '.'
-base	::=	'@base' IRIREF '.'
-sparqlBase	::=	"BASE" IRIREF
-sparqlPrefix	::=	"PREFIX" PNAME_NS IRIREF
-triples	::=	subject predicateObjectList | blankNodePropertyList predicateObjectList?
-predicateObjectList	::=	verb objectList (';' (verb objectList)?)*
-objectList	::=	object (',' object)*
-verb	::=	predicate | 'a'
-subject	::=	iri | BlankNode | collection
-predicate	::=	iri
-object	::=	iri | BlankNode | collection | blankNodePropertyList | literal
-literal	::=	RDFLiteral | NumericLiteral | BooleanLiteral
-blankNodePropertyList	::=	'[' predicateObjectList ']'
-collection	::=	'(' object* ')'
-NumericLiteral	::=	INTEGER | DECIMAL | DOUBLE
-RDFLiteral	::=	String (LANGTAG | '^^' iri)?
-BooleanLiteral	::=	'true' | 'false'
-String	::=	STRING_LITERAL_QUOTE | STRING_LITERAL_SINGLE_QUOTE | STRING_LITERAL_LONG_SINGLE_QUOTE | STRING_LITERAL_LONG_QUOTE
-iri	::=	IRIREF | PrefixedName
-PrefixedName	::=	PNAME_LN | PNAME_NS
-BlankNode	::=	BLANK_NODE_LABEL | ANON
 IRIREF	::=	'<' ([^#x00-#x20<>"{}|^`\] | UCHAR)* '>' /* #x00=NULL #01-#x1F=control codes #x20=space */
 PNAME_NS	::=	PN_PREFIX? ':'
 PNAME_LN	::=	PNAME_NS PN_LOCAL

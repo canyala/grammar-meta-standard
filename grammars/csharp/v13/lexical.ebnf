@@ -1,0 +1,32 @@
+(* C# 13 Lexical Grammar — Preliminary Draft *)
+
+identifier
+  = letter { letter | digit } ;
+
+letter
+  = 'A'..'Z' | 'a'..'z' | '_' ;
+
+digit
+  = '0'..'9' ;
+
+whitespace
+  = ' ' | '\t' | '\n' | '\r' ;
+
+keyword
+  = 'if' | 'else' | 'for' | 'while' | 'class' | 'public' | 'private' ;
+
+literal
+  = integer-literal | string-literal | boolean-literal ;
+
+integer-literal
+  = digit { digit } ;
+
+string-literal
+  = '"' { character | escape-sequence } '"' ;
+
+escape-sequence
+  = '\\' ('n' | 't' | '\\' | '"') ;
+
+comment
+  = '//' { any-character } '\n'
+  | '/*' { any-character } '*/' ;
