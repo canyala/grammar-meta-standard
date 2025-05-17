@@ -1,0 +1,15 @@
+(* Go v1.22 Lexical Grammar *)
+
+identifier ::= letter { letter | digit } ;
+letter     ::= 'a'..'z' | 'A'..'Z' | '_' ;
+digit      ::= '0'..'9' ;
+
+string-literal ::= '"' { character | escape-sequence } '"' ;
+rune-literal   ::= ''' character ''' ;
+escape-sequence ::= '\n' | '\t' | '\\' | '\'' | '\"' ;
+
+numeric-literal ::= digit { digit } [ '.' digit { digit } ] ;
+boolean-literal ::= 'true' | 'false' ;
+nil-literal     ::= 'nil' ;
+
+comment ::= '//' { character } | '/*' { character } '*/' ;

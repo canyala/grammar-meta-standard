@@ -1,0 +1,17 @@
+(* Java v21 Lexical Grammar *)
+
+identifier ::= letter { letter | digit } ;
+letter     ::= 'a'..'z' | 'A'..'Z' | '_' ;
+digit      ::= '0'..'9' ;
+
+whitespace ::= ' ' | '\t' | '\n' | '\r' ;
+
+string-literal ::= '"' character { character } '"' ;
+character-literal ::= ''' character ''' ;
+
+numeric-literal ::= digit { digit } [ '.' digit { digit } ] ;
+
+boolean-literal ::= 'true' | 'false' ;
+null-literal    ::= 'null' ;
+
+comment ::= '//' { character } | '/*' { character } '*/' ;

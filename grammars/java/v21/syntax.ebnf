@@ -1,0 +1,36 @@
+(* Java v21 Syntax Grammar *)
+
+compilation-unit ::= { import-declaration } { type-declaration } ;
+
+import-declaration ::= 'import' qualified-name ';' ;
+qualified-name ::= identifier { '.' identifier } ;
+
+type-declaration ::= class-declaration ;
+
+class-declaration ::= 'class' identifier '{' { class-member-declaration } '}' ;
+
+class-member-declaration ::= field-declaration | method-declaration ;
+
+field-declaration ::= type identifier ';' ;
+method-declaration ::= type identifier '(' parameter-list? ')' block ;
+
+type ::= 'int' | 'boolean' | 'char' | 'String' | identifier ;
+
+parameter-list ::= parameter { ',' parameter } ;
+parameter ::= type identifier ;
+
+block ::= '{' { statement } '}' ;
+
+statement ::= expression-statement | block ;
+
+expression-statement ::= expression ';' ;
+
+expression ::= identifier '=' expression
+             | literal
+             | identifier
+             | method-call ;
+
+method-call ::= identifier '(' argument-list? ')' ;
+argument-list ::= expression { ',' expression } ;
+
+literal ::= string-literal | character-literal | numeric-literal | boolean-literal | null-literal ;

@@ -1,0 +1,34 @@
+(* Go v1.22 Syntax Grammar *)
+
+source-file ::= { import-declaration } { declaration } ;
+
+import-declaration ::= 'import' ( string-literal | '(' { string-literal } ')' ) ;
+
+declaration ::= const-declaration | var-declaration | type-declaration | function-declaration ;
+
+const-declaration ::= 'const' identifier '=' expression ';' ;
+var-declaration   ::= 'var' identifier type [ '=' expression ] ';' ;
+type-declaration  ::= 'type' identifier '=' type ';' ;
+
+function-declaration ::= 'func' identifier '(' parameter-list? ')' block ;
+
+type ::= 'int' | 'string' | 'bool' | identifier ;
+
+parameter-list ::= parameter { ',' parameter } ;
+parameter ::= identifier type ;
+
+block ::= '{' { statement } '}' ;
+
+statement ::= declaration | expression-statement | block ;
+
+expression-statement ::= expression ';' ;
+
+expression ::= identifier '=' expression
+             | literal
+             | identifier
+             | function-call ;
+
+function-call ::= identifier '(' argument-list? ')' ;
+argument-list ::= expression { ',' expression } ;
+
+literal ::= string-literal | numeric-literal | boolean-literal | nil-literal ;

@@ -1,20 +1,75 @@
-# Grammar Meta Standard
+# grammar-meta-standard
 
-This repository defines a structured way to describe programming languages and versions using formal grammars (e.g. EBNF). It aims to enable high-precision code generation and analysis across language versions.
+A unified grammar repository for modern programming languages and DSLs, using a clear, consistent EBNF style.
 
-## Structure
+---
 
-- `grammars/`: Contains grammars for each language and version
-- `meta/`: Metadata definitions and change tracking
-- `tools/`: Utilities such as grammar diffing, validation, and conversion
+## 🎯 Purpose
 
-## Motivation
+To provide well-structured, versioned grammars for real-world programming languages in a common `.ebnf` format, suitable for:
 
-Programming languages are governed by strict rules. Large language models and tools that work with code should operate with equally strict understanding. This project is an initiative to define, version, and share grammar specifications in accessible, precise, and programmable ways.
+- Code generation
+- Syntax highlighting
+- Tooling and linters
+- Static analysis
+- DSL development
 
+---
 
-## Repository
+## 📚 Supported Languages
 
-This project is hosted at: [https://github.com/canyala/grammar-meta-standard](https://github.com/canyala/grammar-meta-standard)
+| Language     | Versions                     | Coverage   |
+|--------------|------------------------------|------------|
+| C#           | v12, v13, v14                 | Partial    |
+| Python       | v3.12, v3.13                  | Partial    |
+| JavaScript   | v2022, v2023, v2024 (ECMAScript) | Partial |
+| Java         | v21                           | Minimal    |
+| Go           | v1.22                         | Minimal    |
 
-Contributions and discussion are welcome via issues and pull requests.
+See [meta/languages.md](meta/languages.md) and [meta/coverage.md](meta/coverage.md) for more.
+
+---
+
+## 📐 Grammar Format
+
+All `.ebnf` files follow the shared convention in [STYLE.md](STYLE.md). Files are split per version into:
+
+- `lexical.ebnf` – character-level tokens
+- `syntax.ebnf` – language-level structure
+
+Each version is stored under:
+
+```
+grammars/<language>/<version>/
+```
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions to expand and refine existing grammars, and especially to add support for additional languages.
+
+### ✅ Examples of valuable future additions:
+
+- Haskell
+- F#
+- C and C++
+- Lisp dialects (Scheme, Common Lisp)
+- Prolog
+- Narrow but expressive DSLs (e.g. templating languages, configuration syntaxes)
+
+If your favorite language isn't listed — you're warmly invited to add it!
+
+---
+
+## 📦 Tools
+
+- See `tools/` for grammar diffing and transformation support.
+- All grammars are designed to be tool-agnostic and readable by both humans and machines.
+
+---
+
+## 🔄 License
+
+MIT License — see [LICENSE](LICENSE) for details.
+
