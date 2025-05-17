@@ -6,13 +6,14 @@ A unified grammar repository for modern programming languages and DSLs, using a 
 
 ## 🎯 Purpose
 
-To provide well-structured, versioned grammars for real-world programming languages in a common `.ebnf` format, suitable for:
+To provide well-structured, versioned grammars for real-world programming languages and DSLs in a common `.ebnf` format, suitable for:
 
 - Code generation
 - Syntax highlighting
 - Tooling and linters
 - Static analysis
 - DSL development
+- RDF/SPARQL processing and semantic tooling
 
 ---
 
@@ -25,6 +26,8 @@ To provide well-structured, versioned grammars for real-world programming langua
 | JavaScript   | v2022, v2023, v2024 (ECMAScript) | Partial |
 | Java         | v21                           | Minimal    |
 | Go           | v1.22                         | Minimal    |
+| Turtle       | v1.1                          | Partial    |
+| SPARQL       | v1.1                          | Partial    |
 
 See [meta/languages.md](meta/languages.md) and [meta/coverage.md](meta/coverage.md) for more.
 
