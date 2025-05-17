@@ -1,62 +1,43 @@
 (* C# 14 Lexical Grammar *)
 
-identifier
-  = letter { letter | digit } ;
+identifier ::= letter { letter | digit } ;
 
-letter
-  = 'a'..'z' | 'A'..'Z' | '_' ;
+letter ::= 'a'..'z' | 'A'..'Z' | '_' ;
 
-digit
-  = '0'..'9' ;
+digit ::= '0'..'9' ;
 
-whitespace
-  = ' ' | '\t' | '\n' | '\r' ;
+whitespace ::= ' ' | '\t' | '\n' | '\r' ;
 
-newline
-  = '\r\n' | '\r' | '\n' ;
+newline ::= '\r\n' | '\r' | '\n' ;
 
-single-line-comment
-  = '//' { any-character-except-newline } ;
+single-line-comment ::= '//' { any-character-except-newline } ;
 
-multi-line-comment
-  = '/*' { any-character-except-'*/' } '*/' ;
+multi-line-comment ::= '/*' { any-character-except-'*/' } '*/' ;
 
-string-literal
-  = regular-string
+string-literal ::= regular-string
   | verbatim-string
   | raw-string ; (* NEW in v13 *)
 
-regular-string
-  = '"' { character | escape-sequence } '"' ;
+regular-string ::= '"' { character | escape-sequence } '"' ;
 
-verbatim-string
-  = '@"' { character | '""' } '"' ;
+verbatim-string ::= '@"' { character | '""' } '"' ;
 
-raw-string
-  = triple-quote { character } triple-quote ;
+raw-string ::= triple-quote { character } triple-quote ;
 
-triple-quote
-  = '"""' ;
+triple-quote ::= '"""' ;
 
-character-literal
-  = ''' ( character | escape-sequence ) ''' ;
+character-literal ::= ''' ( character | escape-sequence ) ''' ;
 
-escape-sequence
-  = '\\' | '\"' | '\'' | '\n' | '\t' | '\r' ;
+escape-sequence ::= '\\' | '\"' | '\'' | '\n' | '\t' | '\r' ;
 
-boolean-literal
-  = 'true' | 'false' ;
+boolean-literal ::= 'true' | 'false' ;
 
-null-literal
-  = 'null' ;
+null-literal ::= 'null' ;
 
-keyword
-  = 'class' | 'struct' | 'interface' | 'enum'
+keyword ::= 'class' | 'struct' | 'interface' | 'enum'
   | 'public' | 'private' | 'protected' | 'internal'
   | 'required' | 'scoped' ; (* NEW in v14 *)
 
-literal
-  = boolean-literal | null-literal | integer-literal | string-literal | character-literal ;
+literal ::= boolean-literal | null-literal | integer-literal | string-literal | character-literal ;
 
-integer-literal
-  = digit { digit } ;
+integer-literal ::= digit { digit } ;

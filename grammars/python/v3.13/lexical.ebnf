@@ -1,21 +1,21 @@
 (* Python v3.13 Lexical Grammar *)
 
-letter         = 'a'..'z' | 'A'..'Z' | '_' ;
-digit          = '0'..'9' ;
-identifier     = letter { letter | digit } ;
-whitespace     = ' ' | '\t' | '\n' | '\r' ;
-newline        = '\n' | '\r\n' ;
+letter ::= 'a'..'z' | 'A'..'Z' | '_' ;
+digit ::= '0'..'9' ;
+identifier ::= letter { letter | digit } ;
+whitespace ::= ' ' | '\t' | '\n' | '\r' ;
+newline ::= '\n' | '\r\n' ;
 
-comment        = '#' { any-character-except-newline } ;
+comment ::= '#' { any-character-except-newline } ;
 
-string-literal = single-quoted | double-quoted | triple-single | triple-double ;
-single-quoted  = '\'' { character | escape-sequence } '\'' ;
-double-quoted  = '"' { character | escape-sequence } '"' ;
-triple-single  = "'''" { character | escape-sequence | newline } "'''" ;
-triple-double  = """"" { character | escape-sequence | newline } """"" ;
+string-literal ::= single-quoted | double-quoted | triple-single | triple-double ;
+single-quoted ::= '\'' { character | escape-sequence } '\'' ;
+double-quoted ::= '"' { character | escape-sequence } '"' ;
+triple-single ::= "'''" { character | escape-sequence | newline } "'''" ;
+triple-double ::= """"" { character | escape-sequence | newline } """"" ;
 
-escape-sequence = '\\' | '\"' | '\'' | '\n' | '\t' | '\r' ;
+escape-sequence ::= '\\' | '\"' | '\'' | '\n' | '\t' | '\r' ;
 
-numeric-literal = integer | float ;
-integer          = digit { digit } ;
-float            = digit { digit } '.' digit { digit } ;
+numeric-literal ::= integer | float ;
+integer ::= digit { digit } ;
+float ::= digit { digit } '.' digit { digit } ;

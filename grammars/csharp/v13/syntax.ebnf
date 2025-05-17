@@ -1,148 +1,106 @@
 (* C# 13 Syntax Grammar *)
 
-compilation-unit
-  = { using-directive } { namespace-member-declaration } ;
+compilation-unit ::= { using-directive } { namespace-member-declaration } ;
 
-using-directive
-  = 'using' qualified-identifier ';' ;
+using-directive ::= 'using' qualified-identifier ';' ;
 
-qualified-identifier
-  = identifier { '.' identifier } ;
+qualified-identifier ::= identifier { '.' identifier } ;
 
-namespace-member-declaration
-  = namespace-declaration
+namespace-member-declaration ::= namespace-declaration
   | type-declaration ;
 
-namespace-declaration
-  = 'namespace' qualified-identifier
+namespace-declaration ::= 'namespace' qualified-identifier
     '{' { namespace-member-declaration } '}' ;
 
-type-declaration
-  = class-declaration
+type-declaration ::= class-declaration
   | struct-declaration ;
 
-class-declaration
-  = attributes? modifiers? 'class' identifier
+class-declaration ::= attributes? modifiers? 'class' identifier
     base-class? type-parameter-list?
     '{' { class-member-declaration } '}' ;
 
-class-member-declaration
-  = method-declaration
+class-member-declaration ::= method-declaration
   | field-declaration
   | constructor-declaration ;
 
-method-declaration
-  = attributes? modifiers? type identifier
+method-declaration ::= attributes? modifiers? type identifier
     '(' parameter-list? ')'
     block ;
 
-constructor-declaration
-  = attributes? modifiers? identifier
+constructor-declaration ::= attributes? modifiers? identifier
     '(' parameter-list? ')'
     block ;
 
-field-declaration
-  = attributes? modifiers? type variable-declarator-list ';' ;
+field-declaration ::= attributes? modifiers? type variable-declarator-list ';' ;
 
-type
-  = predefined-type | identifier ;
+type ::= predefined-type | identifier ;
 
-predefined-type
-  = 'int' | 'string' | 'bool' | 'void' ;
+predefined-type ::= 'int' | 'string' | 'bool' | 'void' ;
 
-variable-declarator-list
-  = variable-declarator { ',' variable-declarator } ;
+variable-declarator-list ::= variable-declarator { ',' variable-declarator } ;
 
-variable-declarator
-  = identifier [ '=' expression ] ;
+variable-declarator ::= identifier [ '=' expression ] ;
 
-parameter-list
-  = parameter { ',' parameter } ;
+parameter-list ::= parameter { ',' parameter } ;
 
-parameter
-  = attributes? modifiers? type identifier ;
+parameter ::= attributes? modifiers? type identifier ;
 
-attributes
-  = '[' attribute { ',' attribute } ']' ;
+attributes ::= '[' attribute { ',' attribute } ']' ;
 
-attribute
-  = identifier ;
+attribute ::= identifier ;
 
-modifiers
-  = modifier { modifier } ;
+modifiers ::= modifier { modifier } ;
 
-modifier
-  = 'public' | 'private' | 'static' | 'readonly' ;
+modifier ::= 'public' | 'private' | 'static' | 'readonly' ;
 
-expression
-  = assignment-expression ;
+expression ::= assignment-expression ;
 
-assignment-expression
-  = conditional-expression
+assignment-expression ::= conditional-expression
   | identifier '=' expression ;
 
-conditional-expression
-  = logical-or-expression [ '?' expression ':' expression ] ;
+conditional-expression ::= logical-or-expression [ '?' expression ':' expression ] ;
 
-logical-or-expression
-  = logical-and-expression { '||' logical-and-expression } ;
+logical-or-expression ::= logical-and-expression { '||' logical-and-expression } ;
 
-logical-and-expression
-  = equality-expression { '&&' equality-expression } ;
+logical-and-expression ::= equality-expression { '&&' equality-expression } ;
 
-equality-expression
-  = relational-expression { ('==' | '!=') relational-expression } ;
+equality-expression ::= relational-expression { ('==' | '!=') relational-expression } ;
 
-relational-expression
-  = additive-expression { ('<' | '<=' | '>' | '>=') additive-expression } ;
+relational-expression ::= additive-expression { ('<' | '<=' | '>' | '>=') additive-expression } ;
 
-additive-expression
-  = multiplicative-expression { ('+' | '-') multiplicative-expression } ;
+additive-expression ::= multiplicative-expression { ('+' | '-') multiplicative-expression } ;
 
-multiplicative-expression
-  = unary-expression { ('*' | '/' | '%') unary-expression } ;
+multiplicative-expression ::= unary-expression { ('*' | '/' | '%') unary-expression } ;
 
-unary-expression
-  = primary-expression
+unary-expression ::= primary-expression
   | ('+' | '-' | '!') unary-expression ;
 
-primary-expression
-  = literal
+primary-expression ::= literal
   | identifier
   | '(' expression ')'
   | invocation-expression ;
 
-invocation-expression
-  = primary-expression '(' argument-list? ')' ;
+invocation-expression ::= primary-expression '(' argument-list? ')' ;
 
-argument-list
-  = expression { ',' expression } ;
+argument-list ::= expression { ',' expression } ;
 
-block
-  = '{' { statement } '}' ;
+block ::= '{' { statement } '}' ;
 
-statement
-  = declaration-statement
+statement ::= declaration-statement
   | expression-statement
   | selection-statement
   | iteration-statement
   | block ;
 
-declaration-statement
-  = local-variable-declaration ';' ;
+declaration-statement ::= local-variable-declaration ';' ;
 
-local-variable-declaration
-  = type variable-declarator-list ;
+local-variable-declaration ::= type variable-declarator-list ;
 
-expression-statement
-  = expression ';' ;
+expression-statement ::= expression ';' ;
 
-selection-statement
-  = 'if' '(' expression ')' statement [ 'else' statement ] ;
+selection-statement ::= 'if' '(' expression ')' statement [ 'else' statement ] ;
 
-iteration-statement
-  = 'for' '(' for-initializer? ';' expression? ';' expression? ')' statement ;
+iteration-statement ::= 'for' '(' for-initializer? ';' expression? ';' expression? ')' statement ;
 
-for-initializer
-  = local-variable-declaration
+for-initializer ::= local-variable-declaration
   | expression-statement ;

@@ -1,0 +1,27 @@
+(* JavaScript v2022 Lexical Grammar *)
+
+identifier ::= identifier-start { identifier-part } ;
+
+identifier-start ::= letter | '_' | '$' ;
+
+identifier-part ::= identifier-start | digit ;
+
+digit ::= '0'..'9' ;
+
+letter ::= 'a'..'z' | 'A'..'Z' ;
+
+whitespace ::= ' ' | '\t' | '\n' | '\r' ;
+
+single-line-comment ::= '//' { any-character-except-newline } ;
+
+multi-line-comment ::= '/*' { any-character } '*/' ;
+
+string-literal ::= single-quoted-string | double-quoted-string ;
+
+single-quoted-string ::= '\'' { character | escape-sequence } '\'' ;
+
+double-quoted-string ::= '"' { character | escape-sequence } '"' ;
+
+escape-sequence ::= '\\' | '\"' | '\'' | '\n' | '\t' | '\r' ;
+
+numeric-literal ::= digit { digit } [ '.' digit { digit } ] ;

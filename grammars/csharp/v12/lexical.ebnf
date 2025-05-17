@@ -1,32 +1,38 @@
-(* C# 12 Lexical Grammar — Preliminary Draft *)
+(* C# 12 Lexical Grammar *)
 
-identifier
-  = letter { letter | digit } ;
+identifier ::= letter { letter | digit } ;
 
-letter
-  = 'A'..'Z' | 'a'..'z' | '_' ;
+letter ::= 'a'..'z' | 'A'..'Z' | '_' ;
 
-digit
-  = '0'..'9' ;
+digit ::= '0'..'9' ;
 
-whitespace
-  = ' ' | '\t' | '\n' | '\r' ;
+whitespace ::= ' ' | '\t' | '\n' | '\r' ;
 
-keyword
-  = 'if' | 'else' | 'for' | 'while' | 'class' | 'public' | 'private' ;
+newline ::= '\r\n' | '\r' | '\n' ;
 
-literal
-  = integer-literal | string-literal | boolean-literal ;
+single-line-comment ::= '//' { any-character-except-newline } ;
 
-integer-literal
-  = digit { digit } ;
+multi-line-comment ::= '/*' { any-character-except-'*/' } '*/' ;
 
-string-literal
-  = '"' { character | escape-sequence } '"' ;
+string-literal ::= regular-string
+  | verbatim-string ;
 
-escape-sequence
-  = '\\' ('n' | 't' | '\\' | '"') ;
+regular-string ::= '"' { character | escape-sequence } '"' ;
 
-comment
-  = '//' { any-character } '\n'
-  | '/*' { any-character } '*/' ;
+verbatim-string ::= '@"' { character | '""' } '"' ;
+
+character-literal ::= ''' ( character | escape-sequence ) ''' ;
+
+escape-sequence ::= '\\' | '\"' | '\'' | '\n' | '\t' | '\r' ;
+
+boolean-literal ::= 'true' | 'false' ;
+
+null-literal ::= 'null' ;
+
+keyword ::= 'class' | 'struct' | 'interface' | 'enum'
+  | 'public' | 'private' | 'protected' | 'internal'
+  | 'if' | 'else' | 'for' | 'while' | 'return' ;
+
+literal ::= boolean-literal | null-literal | integer-literal | string-literal | character-literal ;
+
+integer-literal ::= digit { digit } ;

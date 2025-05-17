@@ -1,49 +1,106 @@
-(* C# 12 Syntax Grammar — Preliminary Draft *)
+(* C# 12 Syntax Grammar *)
 
-compilation-unit
-  = { using-directive } { type-declaration } ;
+compilation-unit ::= { using-directive } { namespace-member-declaration } ;
 
-using-directive
-  = 'using' identifier ';' ;
+using-directive ::= 'using' qualified-identifier ';' ;
 
-type-declaration
-  = class-declaration | struct-declaration ;
+qualified-identifier ::= identifier { '.' identifier } ;
 
-class-declaration
-  = 'class' identifier '{' { class-member-declaration } '}' ;
+namespace-member-declaration ::= namespace-declaration
+  | type-declaration ;
 
-class-member-declaration
-  = method-declaration | field-declaration ;
+namespace-declaration ::= 'namespace' qualified-identifier
+    '{' { namespace-member-declaration } '}' ;
 
-method-declaration
-  = 'public' type identifier '(' [ parameter-list ] ')' block ;
+type-declaration ::= class-declaration
+  | struct-declaration ;
 
-parameter-list
-  = parameter { ',' parameter } ;
+class-declaration ::= attributes? modifiers? 'class' identifier
+    base-class? type-parameter-list?
+    '{' { class-member-declaration } '}' ;
 
-parameter
-  = type identifier ;
+class-member-declaration ::= method-declaration
+  | field-declaration
+  | constructor-declaration ;
 
-field-declaration
-  = type identifier ';' ;
+method-declaration ::= attributes? modifiers? type identifier
+    '(' parameter-list? ')'
+    block ;
 
-type
-  = 'int' | 'string' | 'bool' | identifier ;
+constructor-declaration ::= attributes? modifiers? identifier
+    '(' parameter-list? ')'
+    block ;
 
-block
-  = '{' { statement } '}' ;
+field-declaration ::= attributes? modifiers? type variable-declarator-list ';' ;
 
-statement
-  = if-statement | expression-statement ;
+type ::= predefined-type | identifier ;
 
-if-statement
-  = 'if' '(' expression ')' statement [ 'else' statement ] ;
+predefined-type ::= 'int' | 'string' | 'bool' | 'void' ;
 
-expression-statement
-  = expression ';' ;
+variable-declarator-list ::= variable-declarator { ',' variable-declarator } ;
 
-expression
-  = identifier '=' expression
-  | identifier '+' identifier
-  | literal
-  | identifier ;
+variable-declarator ::= identifier [ '=' expression ] ;
+
+parameter-list ::= parameter { ',' parameter } ;
+
+parameter ::= attributes? modifiers? type identifier ;
+
+attributes ::= '[' attribute { ',' attribute } ']' ;
+
+attribute ::= identifier ;
+
+modifiers ::= modifier { modifier } ;
+
+modifier ::= 'public' | 'private' | 'static' | 'readonly' ;
+
+expression ::= assignment-expression ;
+
+assignment-expression ::= conditional-expression
+  | identifier '=' expression ;
+
+conditional-expression ::= logical-or-expression [ '?' expression ':' expression ] ;
+
+logical-or-expression ::= logical-and-expression { '||' logical-and-expression } ;
+
+logical-and-expression ::= equality-expression { '&&' equality-expression } ;
+
+equality-expression ::= relational-expression { ('==' | '!=') relational-expression } ;
+
+relational-expression ::= additive-expression { ('<' | '<=' | '>' | '>=') additive-expression } ;
+
+additive-expression ::= multiplicative-expression { ('+' | '-') multiplicative-expression } ;
+
+multiplicative-expression ::= unary-expression { ('*' | '/' | '%') unary-expression } ;
+
+unary-expression ::= primary-expression
+  | ('+' | '-' | '!') unary-expression ;
+
+primary-expression ::= literal
+  | identifier
+  | '(' expression ')'
+  | invocation-expression ;
+
+invocation-expression ::= primary-expression '(' argument-list? ')' ;
+
+argument-list ::= expression { ',' expression } ;
+
+block ::= '{' { statement } '}' ;
+
+statement ::= declaration-statement
+  | expression-statement
+  | selection-statement
+  | iteration-statement
+  | block ;
+
+declaration-statement ::= local-variable-declaration ';' ;
+
+local-variable-declaration ::= type variable-declarator-list ;
+
+expression-statement ::= expression ';' ;
+
+selection-statement ::= 'if' '(' expression ')' statement [ 'else' statement ] ;
+
+iteration-statement ::= 'for' '(' for-initializer? ';' expression? ';' expression? ')' statement ;
+
+for-initializer ::= local-variable-declaration
+  | expression-statement ;
