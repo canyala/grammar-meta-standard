@@ -1,0 +1,33 @@
+(* Python v3.13 Syntax Grammar *)
+
+file-input      = { statement } ;
+statement       = simple-statement | compound-statement ;
+
+simple-statement = expression-statement | assignment | return-statement | import-statement ;
+expression-statement = expression ;
+assignment       = identifier '=' expression ;
+return-statement = 'return' expression? ;
+import-statement = 'import' identifier ;
+
+compound-statement = if-statement | while-statement | for-statement |
+                     function-definition | class-definition | match-statement ;
+
+if-statement     = 'if' expression ':' suite [ 'elif' expression ':' suite ]* [ 'else' ':' suite ] ;
+while-statement  = 'while' expression ':' suite ;
+for-statement    = 'for' identifier 'in' expression ':' suite ;
+
+function-definition = 'def' identifier '(' parameter-list? ')' ':' suite ;
+class-definition    = 'class' identifier [ '(' identifier ')' ] ':' suite ;
+
+match-statement  = 'match' expression ':' { case-block } ;
+case-block       = 'case' pattern ':' suite ;
+pattern          = literal | identifier ;
+
+suite            = simple-statement | NEWLINE INDENT { statement } DEDENT ;
+
+expression       = literal | identifier | expression binary-operator expression | function-call ;
+function-call    = identifier '(' argument-list? ')' ;
+argument-list    = expression { ',' expression } ;
+
+literal          = string-literal | numeric-literal ;
+binary-operator  = '+' | '-' | '*' | '/' | '==' | '!=' | '<' | '<=' | '>' | '>=' ;
