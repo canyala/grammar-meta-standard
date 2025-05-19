@@ -13,6 +13,16 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "csharp", "csharp", "{5920B2
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "tools\csharp\StringLiteralTransformer\Tests.csproj", "{06487E61-0ADF-4582-87EB-CE0C20623750}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionItems", "{92731E0A-86B5-48C6-8351-68EBBF98E35A}"
+	ProjectSection(SolutionItems) = preProject
+		CONTRIBUTING.md = CONTRIBUTING.md
+		coverage.md = coverage.md
+		LICENSE = LICENSE
+		README.md = README.md
+		STYLE.md = STYLE.md
+		languages.md = languages.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
