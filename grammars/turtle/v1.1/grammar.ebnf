@@ -51,4 +51,5 @@ BooleanLiteral	::=	'true' | 'false'
 String	::=	STRING_LITERAL_QUOTE | STRING_LITERAL_SINGLE_QUOTE | STRING_LITERAL_LONG_SINGLE_QUOTE | STRING_LITERAL_LONG_QUOTE
 iri	::=	IRIREF | PrefixedName
 PrefixedName	::=	PNAME_LN | PNAME_NS
-BlankNode	::=	BLANK_NODE_LABEL | ANON(* End: syntax.ebnf *)
+BlankNode	::=	BLANK_NODE_LABEL | ANON
+(* End: syntax.ebnf *)
