@@ -1,6 +1,6 @@
 # grammar-meta-standard
 
-A unified grammar repository for modern programming languages and DSLs, using a clear, consistent EBNF style.
+A unified grammar repository for modern programming languages and DSLs, using a clear, consistent XEBNF style.
 
 ---
 
