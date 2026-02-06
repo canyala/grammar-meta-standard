@@ -1,0 +1,2308 @@
+(* ============================================================
+   C# 14.0 Syntactic Grammar
+   XEBNF Specification
+   
+   Source: ECMA-334 (C# 7 standard) extended through C# 14.
+   Cross-referenced with:
+     - dotnet/csharpstandard (standard-v7, draft-v8, draft-v9)
+     - dotnet/roslyn CSharp.Generated.g4
+     - Microsoft Learn C# language reference
+     - C# feature specifications (csharplang/proposals)
+   
+   Companion to: csharp-v14-lexical.xebnf
+   
+   Conformance: Level 1 (Partial)
+   Known gaps documented inline.
+   ============================================================ *)
+
+@grammar {
+    name: "C#" ;
+    version: "14.0" ;
+    family: "csharp" ;
+    spec: "ECMA-334" ;
+    uri: "https://github.com/canyala/grammar-meta-standard/grammars/csharp/v14" ;
+    conformance: 1 ;
+    conformance_notes: "Syntactic grammar covers types, patterns, expressions, 
+        statements, declarations, and members through C# 14. 
+        Operator precedence is encoded via production hierarchy.
+        Some context-sensitive disambiguation rules (e.g. cast vs 
+        parenthesized expression, generic vs comparison) are noted 
+        in annotations but not fully captured in the grammar." ;
+}
+
+@imports {
+    lexical: "./csharp-v14-lexical.xebnf" ;
+}
+
+@predicates {
+    in_async: "Current method/lambda has the async modifier" ;
+    in_unsafe: "Current context has the unsafe modifier" ;
+    in_checked: "Current context is within checked operator scope" ;
+}
+
+(* ============================================================
+   1. COMPILATION UNIT
+   Source: ECMA-334 §14.2, extended through C# 14
+   ============================================================ *)
+
+@[since: "1.0"]
+compilation_unit
+    = extern_alias_directive*
+      using_directive*
+      global_attributes?
+      namespace_member_declaration*
+    | @[since: "9.0"] top_level_statements
+    ;
+
+@[since: "9.0", description: "Top-level statements — implicit Program class with Main method"]
+top_level_statements
+    = extern_alias_directive*
+      using_directive*
+      global_attributes?
+      statement+
+      namespace_member_declaration*
+    ;
+
+(* ============================================================
+   2. NAMESPACE AND TYPE NAMES
+   Source: ECMA-334 §7.8
+   ============================================================ *)
+
+@[since: "1.0"]
+namespace_name = namespace_or_type_name ;
+
+@[since: "1.0"]
+type_name = namespace_or_type_name ;
+
+@[since: "1.0"]
+namespace_or_type_name
+    = identifier type_argument_list? ( '.' identifier type_argument_list? )*
+    | qualified_alias_member ( '.' identifier type_argument_list? )*
+    ;
+
+@[since: "2.0"]
+qualified_alias_member
+    = identifier "::" identifier type_argument_list? ;
+
+(* ============================================================
+   3. TYPES
+   Source: ECMA-334 §8
+   ============================================================ *)
+
+@[since: "1.0"]
+type
+    = reference_type
+    | value_type
+    | type_parameter
+    | @[since: "1.0", context: "unsafe"] pointer_type
+    ;
+
+(* --- Reference types --- *)
+
+@[since: "1.0"]
+reference_type
+    = non_nullable_reference_type
+    | @[since: "8.0"] nullable_reference_type
+    ;
+
+@[since: "1.0"]
+non_nullable_reference_type
+    = class_type
+    | interface_type
+    | array_type
+    | delegate_type
+    | @[since: "4.0"] "dynamic"
+    ;
+
+@[since: "1.0"]
+class_type
+    = type_name
+    | "object"
+    | "string"
+    ;
+
+interface_type = type_name ;
+delegate_type = type_name ;
+enum_type = type_name ;
+
+@[since: "1.0"]
+array_type = non_array_type rank_specifier+ ;
+
+@[since: "1.0"]
+non_array_type
+    = value_type
+    | class_type
+    | interface_type
+    | delegate_type
+    | "dynamic"
+    | type_parameter
+    | pointer_type
+    ;
+
+@[since: "1.0"]
+rank_specifier = '[' ','* ']' ;
+
+@[since: "8.0"]
+nullable_reference_type
+    = non_nullable_reference_type nullable_type_annotation ;
+
+@[since: "8.0"]
+nullable_type_annotation = '?' ;
+
+(* --- Value types --- *)
+
+@[since: "1.0"]
+value_type
+    = non_nullable_value_type
+    | nullable_value_type
+    ;
+
+@[since: "1.0"]
+non_nullable_value_type
+    = struct_type
+    | enum_type
+    ;
+
+@[since: "1.0"]
+struct_type
+    = type_name
+    | simple_type
+    | @[since: "7.0"] tuple_type
+    ;
+
+@[since: "1.0"]
+simple_type
+    = numeric_type
+    | "bool"
+    ;
+
+@[since: "1.0"]
+numeric_type
+    = integral_type
+    | floating_point_type
+    | "decimal"
+    ;
+
+@[since: "1.0"]
+integral_type
+    = "sbyte" | "byte" | "short" | "ushort"
+    | "int"   | "uint" | "long"  | "ulong"
+    | "char"
+    ;
+
+@[since: "1.0"]
+floating_point_type = "float" | "double" ;
+
+@[since: "7.0"]
+tuple_type = '(' tuple_type_element ( ',' tuple_type_element )+ ')' ;
+
+@[since: "7.0"]
+tuple_type_element = type identifier? ;
+
+@[since: "2.0"]
+nullable_value_type = non_nullable_value_type nullable_type_annotation ;
+
+(* --- Type arguments --- *)
+
+@[since: "2.0"]
+type_argument_list = '<' type_argument ( ',' type_argument )* '>' ;
+
+@[since: "2.0"]
+type_argument = type ;
+
+(* --- Type parameters --- *)
+
+@[since: "2.0"]
+type_parameter = identifier ;
+
+(* --- Function pointer types (C# 9) --- *)
+
+@[since: "9.0",
+  description: "Function pointer type for high-performance interop scenarios"]
+function_pointer_type
+    = "delegate" '*' calling_convention? '<' function_pointer_parameter_list '>' ;
+
+@[since: "9.0"]
+calling_convention
+    = "managed"
+    | "unmanaged" ( '[' calling_convention_specifier ( ',' calling_convention_specifier )* ']' )?
+    ;
+
+@[since: "9.0"]
+calling_convention_specifier = identifier ;
+
+@[since: "9.0"]
+function_pointer_parameter_list
+    = function_pointer_parameter ( ',' function_pointer_parameter )* ',' function_pointer_return_type
+    | function_pointer_return_type
+    ;
+
+@[since: "9.0"]
+function_pointer_parameter = "ref"? "readonly"? type ;
+
+@[since: "9.0"]
+function_pointer_return_type = "ref"? "readonly"? type | "void" ;
+
+(* --- Ref types --- *)
+
+@[since: "7.2"]
+ref_type = "ref" "readonly"? type ;
+
+(* --- Scoped ref / scoped Span (C# 11) --- *)
+
+@[since: "11.0"]
+scoped_type = "scoped" type ;
+
+(* --- Pointer types (unsafe) --- *)
+
+@[since: "1.0", context: "unsafe"]
+pointer_type
+    = unmanaged_type '*'
+    | "void" '*'
+    ;
+
+@[since: "1.0", context: "unsafe"]
+unmanaged_type = value_type | pointer_type ;
+
+(* --- Predefined type shorthand --- *)
+
+@[since: "1.0"]
+predefined_type
+    = "bool"    | "byte"   | "char"  | "decimal" | "double"
+    | "float"   | "int"    | "long"  | "object"  | "sbyte"
+    | "short"   | "string" | "uint"  | "ulong"   | "ushort"
+    ;
+
+(* ============================================================
+   4. PATTERNS
+   Source: ECMA-334 §11.2, extended through C# 14
+   
+   Pattern matching has grown substantially:
+     C# 7.0: declaration, constant, var patterns
+     C# 8.0: positional, property, discard, switch expression
+     C# 9.0: relational, logical (and/or/not), type pattern
+     C# 10.0: extended property patterns (nested dotted access)
+     C# 11.0: list patterns, slice patterns
+   ============================================================ *)
+
+@[since: "7.0"]
+pattern
+    = @[since: "9.0"] or_pattern
+    ;
+
+@[since: "9.0", description: "Disjunctive pattern: p1 or p2"]
+or_pattern
+    = and_pattern ( "or" and_pattern )* ;
+
+@[since: "9.0", description: "Conjunctive pattern: p1 and p2"]
+and_pattern
+    = not_pattern ( "and" not_pattern )* ;
+
+@[since: "9.0", description: "Negated pattern: not p"]
+not_pattern
+    = "not"? primary_pattern ;
+
+@[since: "7.0"]
+primary_pattern
+    = declaration_pattern
+    | constant_pattern
+    | var_pattern
+    | @[since: "8.0"]  positional_pattern
+    | @[since: "8.0"]  property_pattern
+    | @[since: "7.0"]  discard_pattern
+    | @[since: "9.0"]  type_pattern
+    | @[since: "9.0"]  relational_pattern
+    | @[since: "11.0"] list_pattern
+    | @[since: "11.0"] slice_pattern
+    | parenthesized_pattern
+    ;
+
+(* --- Declaration pattern --- *)
+
+@[since: "7.0"]
+declaration_pattern = type simple_designation ;
+
+@[since: "7.0"]
+simple_designation
+    = discard_designation
+    | single_variable_designation
+    ;
+
+discard_designation = '_' ;
+
+single_variable_designation = identifier ;
+
+(* --- Constant pattern --- *)
+
+@[since: "7.0"]
+constant_pattern = constant_expression ;
+
+(* --- Var pattern --- *)
+
+@[since: "7.0"]
+var_pattern = "var" designation ;
+
+@[since: "7.0"]
+designation
+    = simple_designation
+    | tuple_designation
+    ;
+
+@[since: "7.0"]
+tuple_designation = '(' designations? ')' ;
+
+@[since: "7.0"]
+designations = designation ( ',' designation )* ;
+
+(* --- Positional pattern --- *)
+
+@[since: "8.0"]
+positional_pattern
+    = type? '(' subpatterns? ')' property_subpattern? simple_designation? ;
+
+@[since: "8.0"]
+subpatterns = subpattern ( ',' subpattern )* ;
+
+@[since: "8.0"]
+subpattern
+    = pattern
+    | identifier ':' pattern
+    ;
+
+(* --- Property pattern --- *)
+
+@[since: "8.0"]
+property_pattern
+    = type? property_subpattern simple_designation? ;
+
+@[since: "8.0"]
+property_subpattern
+    = '{' '}'
+    | '{' property_pattern_clause_list ','? '}'
+    ;
+
+@[since: "8.0"]
+property_pattern_clause_list
+    = property_pattern_clause ( ',' property_pattern_clause )* ;
+
+@[since: "8.0"]
+property_pattern_clause
+    = @[since: "10.0"] extended_property_name ':' pattern
+    | identifier ':' pattern
+    ;
+
+@[since: "10.0", description: "Extended property pattern — dotted member access"]
+extended_property_name
+    = identifier ( '.' identifier )* ;
+
+(* --- Type pattern (C# 9) --- *)
+
+@[since: "9.0"]
+type_pattern = type ;
+
+(* --- Relational pattern (C# 9) --- *)
+
+@[since: "9.0"]
+relational_pattern
+    = relational_operator constant_expression ;
+
+@[since: "9.0"]
+relational_operator = '<' | '>' | "<=" | ">=" ;
+
+(* --- List pattern (C# 11) --- *)
+
+@[since: "11.0", description: "Matches sequences element by element"]
+list_pattern
+    = '[' list_pattern_element_list? ']' simple_designation? ;
+
+@[since: "11.0"]
+list_pattern_element_list
+    = list_pattern_element ( ',' list_pattern_element )* ;
+
+@[since: "11.0"]
+list_pattern_element
+    = pattern
+    | slice_pattern
+    ;
+
+@[since: "11.0", description: "Matches zero or more elements in a list pattern"]
+slice_pattern = ".." pattern? ;
+
+(* --- Discard pattern --- *)
+
+@[since: "7.0"]
+discard_pattern = '_' ;
+
+(* --- Parenthesized pattern --- *)
+
+@[since: "9.0"]
+parenthesized_pattern = '(' pattern ')' ;
+
+(* --- Case guard --- *)
+
+@[since: "7.0"]
+case_guard = "when" expression ;
+
+(* ============================================================
+   5. EXPRESSIONS
+   Source: ECMA-334 §12, extended through C# 14
+   
+   Operator precedence is encoded in the production hierarchy.
+   Listed from lowest to highest precedence.
+   ============================================================ *)
+
+@[since: "1.0"]
+expression
+    = non_assignment_expression
+    | assignment
+    ;
+
+@[since: "1.0"]
+non_assignment_expression
+    = @[since: "7.0"] declaration_expression
+    | conditional_expression
+    | lambda_expression
+    | @[since: "3.0"] query_expression
+    ;
+
+@[since: "1.0"]
+constant_expression = expression ;
+
+@[since: "1.0"]
+boolean_expression = expression ;
+
+@[since: "1.0"]
+variable_reference = expression ;
+
+(* --- Assignment --- *)
+
+@[since: "1.0"]
+assignment = unary_expression assignment_operator expression ;
+
+@[since: "1.0"]
+assignment_operator
+    = '=' "ref"?
+    | "+=" | "-=" | "*=" | "/=" | "%="
+    | "&=" | "|=" | "^="
+    | "<<="
+    | @[since: "8.0"]  "??="
+    | right_shift_assignment
+    | @[since: "11.0"] unsigned_right_shift_assignment
+    ;
+
+(* --- Conditional (ternary) --- *)
+
+@[since: "1.0"]
+conditional_expression
+    = null_coalescing_expression
+    | null_coalescing_expression '?' expression ':' expression
+    | @[since: "7.2"] null_coalescing_expression '?' "ref" variable_reference ':' "ref" variable_reference
+    ;
+
+(* --- Null coalescing --- *)
+
+@[since: "2.0"]
+null_coalescing_expression
+    = conditional_or_expression
+    | conditional_or_expression "??" null_coalescing_expression
+    | @[since: "7.0"] throw_expression
+    ;
+
+@[since: "7.0"]
+throw_expression = "throw" null_coalescing_expression ;
+
+(* --- Conditional OR --- *)
+
+@[since: "1.0"]
+conditional_or_expression
+    = conditional_and_expression
+    | conditional_or_expression "||" conditional_and_expression
+    ;
+
+(* --- Conditional AND --- *)
+
+@[since: "1.0"]
+conditional_and_expression
+    = inclusive_or_expression
+    | conditional_and_expression "&&" inclusive_or_expression
+    ;
+
+(* --- Bitwise OR --- *)
+
+@[since: "1.0"]
+inclusive_or_expression
+    = exclusive_or_expression
+    | inclusive_or_expression '|' exclusive_or_expression
+    ;
+
+(* --- Bitwise XOR --- *)
+
+@[since: "1.0"]
+exclusive_or_expression
+    = and_expression
+    | exclusive_or_expression '^' and_expression
+    ;
+
+(* --- Bitwise AND --- *)
+
+@[since: "1.0"]
+and_expression
+    = equality_expression
+    | and_expression '&' equality_expression
+    ;
+
+(* --- Equality --- *)
+
+@[since: "1.0"]
+equality_expression
+    = relational_expression
+    | equality_expression "==" relational_expression
+    | equality_expression "!=" relational_expression
+    ;
+
+(* --- Relational and type testing --- *)
+
+@[since: "1.0"]
+relational_expression
+    = shift_expression
+    | relational_expression '<' shift_expression
+    | relational_expression '>' shift_expression
+    | relational_expression "<=" shift_expression
+    | relational_expression ">=" shift_expression
+    | relational_expression "is" type
+    | @[since: "7.0"] relational_expression "is" pattern
+    | relational_expression "as" type
+    ;
+
+(* --- Shift --- *)
+
+@[since: "1.0"]
+shift_expression
+    = additive_expression
+    | shift_expression "<<" additive_expression
+    | shift_expression right_shift additive_expression
+    | @[since: "11.0"] shift_expression unsigned_right_shift additive_expression
+    ;
+
+(* --- Additive --- *)
+
+@[since: "1.0"]
+additive_expression
+    = multiplicative_expression
+    | additive_expression '+' multiplicative_expression
+    | additive_expression '-' multiplicative_expression
+    ;
+
+(* --- Multiplicative --- *)
+
+@[since: "1.0"]
+multiplicative_expression
+    = switch_expression
+    | multiplicative_expression '*' switch_expression
+    | multiplicative_expression '/' switch_expression
+    | multiplicative_expression '%' switch_expression
+    ;
+
+(* --- Switch expression (C# 8) --- *)
+
+@[since: "8.0"]
+switch_expression
+    = range_expression
+    | switch_expression "switch" '{' switch_expression_arms? '}'
+    ;
+
+@[since: "8.0"]
+switch_expression_arms
+    = switch_expression_arm ( ',' switch_expression_arm )* ','? ;
+
+@[since: "8.0"]
+switch_expression_arm
+    = pattern case_guard? "=>" expression ;
+
+(* --- Range (C# 8) --- *)
+
+@[since: "8.0"]
+range_expression
+    = unary_expression
+    | unary_expression? ".." unary_expression?
+    ;
+
+(* --- Unary --- *)
+
+@[since: "1.0"]
+unary_expression
+    = primary_expression
+    | '+' unary_expression
+    | '-' unary_expression
+    | '!' unary_expression
+    | '~' unary_expression
+    | @[since: "8.0"] '^' unary_expression          (* index-from-end *)
+    | pre_increment_expression
+    | pre_decrement_expression
+    | cast_expression
+    | @[since: "5.0"] await_expression
+    | pointer_indirection_expression
+    | addressof_expression
+    ;
+
+pre_increment_expression = "++" unary_expression ;
+pre_decrement_expression = "--" unary_expression ;
+
+@[since: "1.0"]
+cast_expression = '(' type ')' unary_expression ;
+
+@[since: "5.0"]
+await_expression = "await" unary_expression ;
+
+(* --- Primary expressions --- *)
+
+@[since: "1.0"]
+primary_expression
+    = literal
+    | @[since: "6.0"]  interpolated_string_expression
+    | simple_name
+    | parenthesized_expression
+    | @[since: "7.0"]  tuple_expression
+    | member_access
+    | @[since: "6.0"]  null_conditional_member_access
+    | invocation_expression
+    | element_access
+    | @[since: "6.0"]  null_conditional_element_access
+    | this_access
+    | base_access
+    | post_increment_expression
+    | post_decrement_expression
+    | @[since: "8.0"]  null_forgiving_expression
+    | object_creation_expression
+    | @[since: "9.0"]  target_typed_new_expression
+    | delegate_creation_expression
+    | anonymous_object_creation_expression
+    | array_creation_expression
+    | typeof_expression
+    | sizeof_expression
+    | checked_expression
+    | unchecked_expression
+    | default_value_expression
+    | @[since: "6.0"]  nameof_expression
+    | anonymous_method_expression
+    | stackalloc_expression
+    | @[since: "12.0"] collection_expression
+    | pointer_member_access
+    | pointer_element_access
+    ;
+
+(* --- Literal --- *)
+(* Defined in lexical grammar, used directly here *)
+
+(* --- Simple name --- *)
+
+@[since: "1.0"]
+simple_name = identifier type_argument_list? ;
+
+(* --- Parenthesized --- *)
+
+@[since: "1.0"]
+parenthesized_expression = '(' expression ')' ;
+
+(* --- Tuple expression (C# 7) --- *)
+
+@[since: "7.0"]
+tuple_expression
+    = '(' tuple_element ( ',' tuple_element )+ ')'
+    | deconstruction_expression
+    ;
+
+@[since: "7.0"]
+tuple_element = ( identifier ':' )? expression ;
+
+@[since: "7.0"]
+deconstruction_expression = "var" deconstruction_tuple ;
+
+@[since: "7.0"]
+deconstruction_tuple
+    = '(' deconstruction_element ( ',' deconstruction_element )+ ')' ;
+
+@[since: "7.0"]
+deconstruction_element
+    = deconstruction_tuple
+    | identifier
+    ;
+
+(* --- Member access --- *)
+
+@[since: "1.0"]
+member_access
+    = primary_expression '.' identifier type_argument_list?
+    | predefined_type '.' identifier type_argument_list?
+    | qualified_alias_member '.' identifier type_argument_list?
+    ;
+
+(* --- Null-conditional member access --- *)
+
+@[since: "6.0"]
+null_conditional_member_access
+    = primary_expression '?' '.' identifier type_argument_list?
+      ( null_forgiving_operator? dependent_access )*
+    ;
+
+@[since: "6.0"]
+dependent_access
+    = '.' identifier type_argument_list?
+    | '[' argument_list ']'
+    | '(' argument_list? ')'
+    ;
+
+(* --- Invocation --- *)
+
+@[since: "1.0"]
+invocation_expression = primary_expression '(' argument_list? ')' ;
+
+(* --- Element access --- *)
+
+@[since: "1.0"]
+element_access = primary_expression '[' argument_list ']' ;
+
+(* --- Null-conditional element access --- *)
+
+@[since: "6.0"]
+null_conditional_element_access
+    = primary_expression '?' '[' argument_list ']'
+      ( null_forgiving_operator? dependent_access )*
+    ;
+
+(* --- Null-conditional assignment (C# 14) --- *)
+
+@[since: "14.0",
+  description: "Null-conditional on left-hand side of assignment: x?.P = v"]
+null_conditional_assignment
+    = null_conditional_member_access assignment_operator expression
+    | null_conditional_element_access assignment_operator expression
+    ;
+
+(* --- This and base access --- *)
+
+@[since: "1.0"]
+this_access = "this" ;
+
+@[since: "1.0"]
+base_access
+    = "base" '.' identifier type_argument_list?
+    | "base" '[' argument_list ']'
+    ;
+
+(* --- Postfix increment/decrement --- *)
+
+post_increment_expression = primary_expression "++" ;
+post_decrement_expression = primary_expression "--" ;
+
+(* --- Null-forgiving operator (C# 8) --- *)
+
+@[since: "8.0"]
+null_forgiving_expression = primary_expression null_forgiving_operator ;
+
+@[since: "8.0"]
+null_forgiving_operator = '!' ;
+
+(* --- Object creation --- *)
+
+@[since: "1.0"]
+object_creation_expression
+    = "new" type '(' argument_list? ')' object_or_collection_initializer?
+    | "new" type object_or_collection_initializer
+    ;
+
+@[since: "9.0", description: "Target-typed new — type inferred from context"]
+target_typed_new_expression
+    = "new" '(' argument_list? ')' object_or_collection_initializer? ;
+
+object_or_collection_initializer
+    = object_initializer
+    | collection_initializer
+    ;
+
+(* --- Object initializer --- *)
+
+@[since: "3.0"]
+object_initializer
+    = '{' member_initializer_list? '}'
+    | '{' member_initializer_list ',' '}'
+    ;
+
+member_initializer_list
+    = member_initializer ( ',' member_initializer )* ;
+
+member_initializer
+    = initializer_target '=' initializer_value ;
+
+initializer_target
+    = identifier
+    | '[' argument_list ']'
+    ;
+
+initializer_value
+    = expression
+    | object_or_collection_initializer
+    ;
+
+(* --- Collection initializer --- *)
+
+@[since: "3.0"]
+collection_initializer
+    = '{' element_initializer_list '}'
+    | '{' element_initializer_list ',' '}'
+    ;
+
+element_initializer_list
+    = element_initializer ( ',' element_initializer )* ;
+
+element_initializer
+    = non_assignment_expression
+    | '{' expression_list '}'
+    ;
+
+expression_list = expression ( ',' expression )* ;
+
+(* --- Collection expression (C# 12) --- *)
+
+@[since: "12.0",
+  description: "Collection literal syntax with spread operator"]
+collection_expression
+    = '[' collection_element_list? ']' ;
+
+@[since: "12.0"]
+collection_element_list
+    = collection_element ( ',' collection_element )* ','? ;
+
+@[since: "12.0"]
+collection_element
+    = expression
+    | spread_element
+    ;
+
+@[since: "12.0"]
+spread_element = ".." expression ;
+
+(* --- Anonymous object creation --- *)
+
+@[since: "3.0"]
+anonymous_object_creation_expression
+    = "new" anonymous_object_initializer ;
+
+anonymous_object_initializer
+    = '{' member_declarator_list? '}'
+    | '{' member_declarator_list ',' '}'
+    ;
+
+member_declarator_list
+    = member_declarator ( ',' member_declarator )* ;
+
+member_declarator
+    = simple_name
+    | member_access
+    | base_access
+    | identifier '=' expression
+    ;
+
+(* --- Array creation --- *)
+
+@[since: "1.0"]
+array_creation_expression
+    = "new" non_array_type '[' expression_list ']' rank_specifier* array_initializer?
+    | "new" array_type array_initializer
+    | "new" rank_specifier array_initializer
+    ;
+
+@[since: "1.0"]
+array_initializer
+    = '{' variable_initializer_list? '}'
+    | '{' variable_initializer_list ',' '}'
+    ;
+
+variable_initializer_list
+    = variable_initializer ( ',' variable_initializer )* ;
+
+variable_initializer
+    = expression
+    | array_initializer
+    ;
+
+(* --- Delegate creation --- *)
+
+@[since: "1.0"]
+delegate_creation_expression
+    = "new" delegate_type '(' expression ')' ;
+
+(* --- typeof --- *)
+
+@[since: "1.0"]
+typeof_expression
+    = "typeof" '(' type ')'
+    | "typeof" '(' unbound_type_name ')'
+    | "typeof" '(' "void" ')'
+    ;
+
+unbound_type_name
+    = identifier generic_dimension_specifier?
+      ( '.' identifier generic_dimension_specifier? )*
+    | unbound_qualified_alias_member
+      ( '.' identifier generic_dimension_specifier? )*
+    ;
+
+unbound_qualified_alias_member
+    = identifier "::" identifier generic_dimension_specifier? ;
+
+generic_dimension_specifier = '<' ','* '>' ;
+
+(* --- sizeof --- *)
+
+@[since: "1.0", context: "unsafe"]
+sizeof_expression = "sizeof" '(' unmanaged_type ')' ;
+
+(* --- checked/unchecked --- *)
+
+checked_expression = "checked" '(' expression ')' ;
+unchecked_expression = "unchecked" '(' expression ')' ;
+
+(* --- default --- *)
+
+@[since: "1.0"]
+default_value_expression
+    = "default" '(' type ')'
+    | @[since: "7.1"] "default"
+    ;
+
+(* --- nameof (C# 6) --- *)
+
+@[since: "6.0"]
+nameof_expression = "nameof" '(' named_entity ')' ;
+
+named_entity
+    = named_entity_target ( '.' identifier type_argument_list? )* ;
+
+named_entity_target
+    = simple_name
+    | "this"
+    | "base"
+    | predefined_type
+    | qualified_alias_member
+    ;
+
+(* --- stackalloc --- *)
+
+@[since: "1.0", context: "unsafe"]
+stackalloc_expression
+    = "stackalloc" unmanaged_type '[' expression ']'
+    | @[since: "7.2"] "stackalloc" unmanaged_type? '[' constant_expression? ']' stackalloc_initializer
+    ;
+
+@[since: "7.2"]
+stackalloc_initializer
+    = '{' stackalloc_element_initializer ( ',' stackalloc_element_initializer )* ','? '}' ;
+
+stackalloc_element_initializer = expression ;
+
+(* --- Interpolated strings --- *)
+
+@[since: "6.0",
+  description: "Interpolated string expression — crosses lexer/parser boundary.
+    The lexer emits context-sensitive tokens for string content and 
+    interpolation holes. See lexical grammar for token definitions."]
+interpolated_string_expression
+    = interpolated_regular_string_expression
+    | interpolated_verbatim_string_expression
+    | @[since: "11.0"] interpolated_raw_string_expression
+    ;
+
+@[since: "6.0"]
+interpolated_regular_string_expression
+    = INTERPOLATED_REGULAR_STRING_START
+      INTERPOLATED_REGULAR_STRING_MID?
+      ( '{' regular_interpolation '}' INTERPOLATED_REGULAR_STRING_MID? )*
+      INTERPOLATED_REGULAR_STRING_END
+    ;
+
+regular_interpolation
+    = expression ( ',' interpolation_minimum_width )? interpolation_format? ;
+
+interpolation_minimum_width = constant_expression ;
+
+interpolation_format = ':' interpolation_format_characters ;
+
+@[since: "6.0"]
+interpolated_verbatim_string_expression
+    = INTERPOLATED_VERBATIM_STRING_START
+      INTERPOLATED_VERBATIM_STRING_MID?
+      ( '{' verbatim_interpolation '}' INTERPOLATED_VERBATIM_STRING_MID? )*
+      INTERPOLATED_VERBATIM_STRING_END
+    ;
+
+verbatim_interpolation
+    = expression ( ',' interpolation_minimum_width )? interpolation_format? ;
+
+@[since: "11.0",
+  description: "Raw interpolated string — context-sensitive delimiter matching.
+    Number of $ signs determines brace depth for interpolation holes."]
+interpolated_raw_string_expression
+    = INTERPOLATED_RAW_STRING_START
+      (* Content and interpolation holes with context-sensitive delimiters *)
+      INTERPOLATED_RAW_STRING_END
+    ;
+
+(* --- Declaration expression (C# 7) --- *)
+
+@[since: "7.0"]
+declaration_expression = local_variable_type identifier ;
+
+@[since: "3.0"]
+local_variable_type
+    = type
+    | "var"
+    ;
+
+(* --- Lambda expressions --- *)
+
+@[since: "3.0"]
+lambda_expression
+    = lambda_attributes? lambda_modifiers? anonymous_function_signature "=>" anonymous_function_body ;
+
+@[since: "10.0"]
+lambda_attributes = attribute_section+ ;
+
+@[since: "10.0"]
+lambda_modifiers
+    = "async"? lambda_return_type?
+    | "static"? "async"? lambda_return_type?
+    ;
+
+@[since: "10.0"]
+lambda_return_type = type | "void" ;
+
+anonymous_function_signature
+    = explicit_anonymous_function_signature
+    | implicit_anonymous_function_signature
+    ;
+
+explicit_anonymous_function_signature
+    = '(' explicit_anonymous_function_parameter_list? ')' ;
+
+explicit_anonymous_function_parameter_list
+    = explicit_anonymous_function_parameter ( ',' explicit_anonymous_function_parameter )* ;
+
+explicit_anonymous_function_parameter
+    = attribute_section* anonymous_function_parameter_modifier* type identifier
+    | @[since: "14.0"] attribute_section* anonymous_function_parameter_modifier* identifier
+      (* C# 14: modifiers without explicit types in implicit lambdas *)
+    ;
+
+anonymous_function_parameter_modifier
+    = "ref" | "out" | "in" | @[since: "12.0"] "params" | @[since: "11.0"] "scoped" ;
+
+implicit_anonymous_function_signature
+    = '(' implicit_anonymous_function_parameter_list? ')'
+    | implicit_anonymous_function_parameter
+    ;
+
+implicit_anonymous_function_parameter_list
+    = implicit_anonymous_function_parameter ( ',' implicit_anonymous_function_parameter )* ;
+
+implicit_anonymous_function_parameter = identifier ;
+
+anonymous_function_body
+    = expression
+    | "ref" variable_reference
+    | block
+    ;
+
+(* --- Anonymous method expression --- *)
+
+@[since: "2.0"]
+anonymous_method_expression
+    = "async"? "delegate" explicit_anonymous_function_signature? block ;
+
+(* --- Query expressions (LINQ) --- *)
+
+@[since: "3.0"]
+query_expression = from_clause query_body ;
+
+from_clause = "from" type? identifier "in" expression ;
+
+query_body
+    = query_body_clause* select_or_group_clause query_continuation? ;
+
+query_body_clause
+    = from_clause
+    | let_clause
+    | where_clause
+    | join_clause
+    | join_into_clause
+    | orderby_clause
+    ;
+
+let_clause = "let" identifier '=' expression ;
+
+where_clause = "where" boolean_expression ;
+
+join_clause
+    = "join" type? identifier "in" expression "on" expression "equals" expression ;
+
+join_into_clause
+    = "join" type? identifier "in" expression "on" expression "equals" expression "into" identifier ;
+
+orderby_clause = "orderby" orderings ;
+
+orderings = ordering ( ',' ordering )* ;
+
+ordering = expression ordering_direction? ;
+
+ordering_direction = "ascending" | "descending" ;
+
+select_or_group_clause
+    = select_clause
+    | group_clause
+    ;
+
+select_clause = "select" expression ;
+
+group_clause = "group" expression "by" expression ;
+
+query_continuation = "into" identifier query_body ;
+
+(* --- Argument list --- *)
+
+@[since: "1.0"]
+argument_list = argument ( ',' argument )* ;
+
+@[since: "1.0"]
+argument = argument_name? argument_value ;
+
+argument_name = identifier ':' ;
+
+argument_value
+    = expression
+    | "in" variable_reference
+    | "ref" variable_reference
+    | "out" variable_reference
+    | @[since: "7.0"] "out" declaration_expression
+    ;
+
+(* --- Pointer expressions (unsafe) --- *)
+
+@[since: "1.0", context: "unsafe"]
+pointer_member_access = primary_expression "->" identifier type_argument_list? ;
+
+@[since: "1.0", context: "unsafe"]
+pointer_element_access = primary_expression '[' expression ']' ;
+
+@[since: "1.0", context: "unsafe"]
+pointer_indirection_expression = '*' unary_expression ;
+
+@[since: "1.0", context: "unsafe"]
+addressof_expression = '&' unary_expression ;
+
+(* ============================================================
+   6. STATEMENTS
+   Source: ECMA-334 §13, extended through C# 14
+   ============================================================ *)
+
+@[since: "1.0"]
+statement
+    = labeled_statement
+    | declaration_statement
+    | embedded_statement
+    ;
+
+@[since: "1.0"]
+embedded_statement
+    = block
+    | empty_statement
+    | expression_statement
+    | selection_statement
+    | iteration_statement
+    | jump_statement
+    | try_statement
+    | checked_statement
+    | unchecked_statement
+    | lock_statement
+    | using_statement
+    | @[since: "2.0"]  yield_statement
+    | @[since: "1.0", context: "unsafe"] unsafe_statement
+    | @[since: "1.0", context: "unsafe"] fixed_statement
+    ;
+
+@[since: "1.0"]
+block = '{' statement_list? '}' ;
+
+statement_list = statement+ ;
+
+empty_statement = ';' ;
+
+labeled_statement = identifier ':' statement ;
+
+(* --- Declaration statement --- *)
+
+@[since: "1.0"]
+declaration_statement
+    = local_variable_declaration ';'
+    | local_constant_declaration ';'
+    | @[since: "7.0"] local_function_declaration
+    ;
+
+(* --- Local variable declaration --- *)
+
+@[since: "1.0"]
+local_variable_declaration
+    = implicitly_typed_local_variable_declaration
+    | explicitly_typed_local_variable_declaration
+    | @[since: "7.0"] ref_local_variable_declaration
+    | @[since: "7.0"] deconstruction_declaration
+    | @[since: "9.0"] using_local_variable_declaration
+    ;
+
+@[since: "3.0"]
+implicitly_typed_local_variable_declaration
+    = "var" identifier '=' expression ;
+
+@[since: "1.0"]
+explicitly_typed_local_variable_declaration
+    = type local_variable_declarators ;
+
+local_variable_declarators
+    = local_variable_declarator ( ',' local_variable_declarator )* ;
+
+local_variable_declarator
+    = identifier ( '=' local_variable_initializer )? ;
+
+local_variable_initializer
+    = expression
+    | array_initializer
+    ;
+
+@[since: "7.0"]
+ref_local_variable_declaration
+    = "ref" "readonly"? type identifier '=' "ref" variable_reference ;
+
+@[since: "7.0"]
+deconstruction_declaration
+    = local_variable_type deconstruction_tuple '=' expression ;
+
+@[since: "8.0"]
+using_local_variable_declaration
+    = "using" local_variable_declaration ;
+
+(* --- Local constant declaration --- *)
+
+@[since: "1.0"]
+local_constant_declaration
+    = "const" type constant_declarators ;
+
+constant_declarators
+    = constant_declarator ( ',' constant_declarator )* ;
+
+constant_declarator = identifier '=' constant_expression ;
+
+(* --- Local function (C# 7) --- *)
+
+@[since: "7.0"]
+local_function_declaration
+    = local_function_header local_function_body ;
+
+local_function_header
+    = local_function_modifier* return_type identifier type_parameter_list?
+      '(' formal_parameter_list? ')' type_parameter_constraints_clause* ;
+
+@[since: "7.0"]
+local_function_modifier
+    = "async"
+    | "unsafe"
+    | @[since: "8.0"] "static"
+    ;
+
+local_function_body
+    = block
+    | "=>" expression ';'
+    | "=>" "ref" variable_reference ';'
+    ;
+
+(* --- Expression statement --- *)
+
+@[since: "1.0"]
+expression_statement
+    = statement_expression ';' ;
+
+statement_expression
+    = invocation_expression
+    | null_conditional_invocation_expression
+    | assignment
+    | @[since: "14.0"] null_conditional_assignment
+    | post_increment_expression
+    | post_decrement_expression
+    | pre_increment_expression
+    | pre_decrement_expression
+    | await_expression
+    | object_creation_expression
+    ;
+
+@[since: "6.0"]
+null_conditional_invocation_expression
+    = null_conditional_member_access null_forgiving_operator? '(' argument_list? ')'
+    | null_conditional_element_access null_forgiving_operator? '(' argument_list? ')'
+    ;
+
+(* --- Selection statements --- *)
+
+@[since: "1.0"]
+selection_statement
+    = if_statement
+    | switch_statement
+    ;
+
+@[since: "1.0"]
+if_statement
+    = "if" '(' boolean_expression ')' embedded_statement ( "else" embedded_statement )? ;
+
+@[since: "1.0"]
+switch_statement
+    = "switch" '(' expression ')' switch_block ;
+
+switch_block = '{' switch_section* '}' ;
+
+switch_section = switch_label+ statement_list ;
+
+@[since: "1.0"]
+switch_label
+    = "case" constant_expression ':'
+    | @[since: "7.0"] "case" pattern case_guard? ':'
+    | "default" ':'
+    ;
+
+(* --- Iteration statements --- *)
+
+@[since: "1.0"]
+iteration_statement
+    = while_statement
+    | do_statement
+    | for_statement
+    | foreach_statement
+    ;
+
+while_statement = "while" '(' boolean_expression ')' embedded_statement ;
+
+do_statement = "do" embedded_statement "while" '(' boolean_expression ')' ';' ;
+
+for_statement
+    = "for" '(' for_initializer? ';' for_condition? ';' for_iterator? ')' embedded_statement ;
+
+for_initializer
+    = local_variable_declaration
+    | statement_expression_list
+    ;
+
+for_condition = boolean_expression ;
+
+for_iterator = statement_expression_list ;
+
+statement_expression_list
+    = statement_expression ( ',' statement_expression )* ;
+
+@[since: "1.0"]
+foreach_statement
+    = "foreach" '(' local_variable_type identifier "in" expression ')' embedded_statement
+    | @[since: "7.0"] "foreach" '(' deconstruction_tuple "in" expression ')' embedded_statement
+    ;
+
+(* --- Jump statements --- *)
+
+@[since: "1.0"]
+jump_statement
+    = break_statement
+    | continue_statement
+    | goto_statement
+    | return_statement
+    | throw_statement
+    ;
+
+break_statement = "break" ';' ;
+
+continue_statement = "continue" ';' ;
+
+goto_statement
+    = "goto" identifier ';'
+    | "goto" "case" constant_expression ';'
+    | "goto" "default" ';'
+    ;
+
+return_statement
+    = "return" expression? ';'
+    | @[since: "7.0"] "return" "ref" variable_reference ';'
+    ;
+
+throw_statement = "throw" expression? ';' ;
+
+(* --- Try statement --- *)
+
+@[since: "1.0"]
+try_statement
+    = "try" block catch_clauses
+    | "try" block finally_clause
+    | "try" block catch_clauses finally_clause
+    ;
+
+catch_clauses
+    = specific_catch_clause+ general_catch_clause?
+    | general_catch_clause
+    ;
+
+specific_catch_clause
+    = "catch" '(' type identifier? ')' exception_filter? block ;
+
+general_catch_clause = "catch" block ;
+
+@[since: "6.0"]
+exception_filter = "when" '(' boolean_expression ')' ;
+
+finally_clause = "finally" block ;
+
+(* --- Checked/unchecked statements --- *)
+
+checked_statement = "checked" block ;
+unchecked_statement = "unchecked" block ;
+
+(* --- Lock statement --- *)
+
+lock_statement = "lock" '(' expression ')' embedded_statement ;
+
+(* --- Using statement --- *)
+
+@[since: "1.0"]
+using_statement
+    = "using" '(' resource_acquisition ')' embedded_statement
+    | @[since: "8.0"] "await" "using" '(' resource_acquisition ')' embedded_statement
+    ;
+
+resource_acquisition
+    = local_variable_declaration
+    | expression
+    ;
+
+(* --- Yield statement --- *)
+
+@[since: "2.0"]
+yield_statement
+    = "yield" "return" expression ';'
+    | "yield" "break" ';'
+    ;
+
+(* --- Unsafe/fixed statements --- *)
+
+@[since: "1.0", context: "unsafe"]
+unsafe_statement = "unsafe" block ;
+
+@[since: "1.0", context: "unsafe"]
+fixed_statement
+    = "fixed" '(' pointer_type fixed_pointer_declarators ')' embedded_statement ;
+
+fixed_pointer_declarators
+    = fixed_pointer_declarator ( ',' fixed_pointer_declarator )* ;
+
+fixed_pointer_declarator
+    = identifier '=' fixed_pointer_initializer ;
+
+fixed_pointer_initializer
+    = '&' variable_reference
+    | expression
+    ;
+
+(* ============================================================
+   7. NAMESPACE DECLARATIONS
+   Source: ECMA-334 §14, extended through C# 14
+   ============================================================ *)
+
+@[since: "1.0"]
+namespace_declaration
+    = "namespace" qualified_identifier namespace_body ';'?
+    | @[since: "10.0"] file_scoped_namespace_declaration
+    ;
+
+@[since: "10.0"]
+file_scoped_namespace_declaration
+    = "namespace" qualified_identifier ';' ;
+
+qualified_identifier = identifier ( '.' identifier )* ;
+
+namespace_body
+    = '{' extern_alias_directive* using_directive* namespace_member_declaration* '}' ;
+
+@[since: "2.0"]
+extern_alias_directive = "extern" "alias" identifier ';' ;
+
+(* --- Using directives --- *)
+
+@[since: "1.0"]
+using_directive
+    = @[since: "10.0"] "global"? using_directive_body ;
+
+using_directive_body
+    = "using" namespace_name ';'
+    | @[since: "6.0"] "using" "static" type_name ';'
+    | using_alias_directive
+    ;
+
+@[since: "1.0"]
+using_alias_directive
+    = "using" identifier '=' namespace_or_type_name ';'
+    | @[since: "12.0"] "using" identifier '=' type ';'
+      (* C# 12: using aliases for any type including tuples, pointers, etc. *)
+    ;
+
+(* --- Namespace members --- *)
+
+@[since: "1.0"]
+namespace_member_declaration
+    = namespace_declaration
+    | type_declaration
+    ;
+
+@[since: "1.0"]
+type_declaration
+    = class_declaration
+    | struct_declaration
+    | interface_declaration
+    | enum_declaration
+    | delegate_declaration
+    | @[since: "9.0"]  record_declaration
+    | @[since: "14.0"] extension_declaration
+    ;
+
+(* ============================================================
+   8. ATTRIBUTES
+   Source: ECMA-334 §22
+   ============================================================ *)
+
+@[since: "1.0"]
+global_attributes = global_attribute_section+ ;
+
+global_attribute_section
+    = '[' global_attribute_target ':' attribute_list ','? ']' ;
+
+global_attribute_target = identifier ;
+    (* "assembly" or "module" *)
+
+@[since: "1.0"]
+attribute_section
+    = '[' attribute_target? attribute_list ','? ']' ;
+
+attribute_target = identifier ':' ;
+    (* "field", "event", "method", "param", "property", "return", "type" *)
+
+attribute_list = attribute ( ',' attribute )* ;
+
+attribute = attribute_name attribute_arguments? ;
+
+attribute_name = type_name ;
+
+attribute_arguments
+    = '(' positional_argument_list? ')'
+    | '(' positional_argument_list ',' named_argument_list ')'
+    | '(' named_argument_list ')'
+    ;
+
+positional_argument_list
+    = positional_argument ( ',' positional_argument )* ;
+
+positional_argument = argument_name? attribute_argument_expression ;
+
+named_argument_list = named_argument ( ',' named_argument )* ;
+
+named_argument = identifier '=' attribute_argument_expression ;
+
+attribute_argument_expression = expression ;
+
+(* ============================================================
+   9. MODIFIERS
+   ============================================================ *)
+
+@[since: "1.0"]
+class_modifier
+    = "new" | "public" | "protected" | "internal" | "private"
+    | "abstract" | "sealed" | "static" | "unsafe"
+    | @[since: "10.0"] "file"
+    ;
+
+@[since: "1.0"]
+struct_modifier
+    = "new" | "public" | "protected" | "internal" | "private"
+    | "unsafe"
+    | @[since: "7.2"]  "readonly"
+    | @[since: "7.2"]  "ref"
+    | @[since: "10.0"] "file"
+    ;
+
+@[since: "1.0"]
+interface_modifier
+    = "new" | "public" | "protected" | "internal" | "private"
+    | "unsafe"
+    | @[since: "10.0"] "file"
+    ;
+
+@[since: "1.0"]
+member_modifier
+    = "new" | "public" | "protected" | "internal" | "private"
+    | "static" | "virtual" | "sealed" | "override" | "abstract"
+    | "extern" | "unsafe" | "volatile" | "readonly"
+    | @[since: "5.0"]  "async"
+    | @[since: "11.0"] "required"
+    | @[since: "10.0"] "scoped"
+    ;
+
+(* ============================================================
+   10. TYPE DECLARATIONS
+   ============================================================ *)
+
+(* --- Class declaration --- *)
+
+@[since: "1.0"]
+class_declaration
+    = attribute_section* class_modifier* "partial"? "class" identifier
+      type_parameter_list? class_base? type_parameter_constraints_clause*
+      class_body ';'?
+    ;
+
+@[since: "1.0"]
+class_base
+    = ':' class_type ( ',' interface_type )*
+    | ':' interface_type ( ',' interface_type )*
+    ;
+
+@[since: "1.0"]
+class_body
+    = '{' class_member_declaration* '}' ;
+
+(* --- Struct declaration --- *)
+
+@[since: "1.0"]
+struct_declaration
+    = attribute_section* struct_modifier* "partial"? "struct" identifier
+      type_parameter_list? struct_interfaces? type_parameter_constraints_clause*
+      struct_body ';'?
+    ;
+
+struct_interfaces = ':' interface_type ( ',' interface_type )* ;
+
+struct_body = '{' struct_member_declaration* '}' ;
+
+(* --- Interface declaration --- *)
+
+@[since: "1.0"]
+interface_declaration
+    = attribute_section* interface_modifier* "partial"? "interface" identifier
+      type_parameter_list? interface_base? type_parameter_constraints_clause*
+      interface_body ';'?
+    ;
+
+interface_base = ':' interface_type ( ',' interface_type )* ;
+
+interface_body = '{' interface_member_declaration* '}' ;
+
+(* --- Enum declaration --- *)
+
+@[since: "1.0"]
+enum_declaration
+    = attribute_section* enum_modifier* "enum" identifier enum_base? enum_body ';'? ;
+
+enum_modifier
+    = "new" | "public" | "protected" | "internal" | "private" ;
+
+enum_base = ':' integral_type ;
+
+enum_body
+    = '{' enum_member_declaration_list? '}'
+    | '{' enum_member_declaration_list ',' '}'
+    ;
+
+enum_member_declaration_list
+    = enum_member_declaration ( ',' enum_member_declaration )* ;
+
+enum_member_declaration
+    = attribute_section* identifier ( '=' constant_expression )? ;
+
+(* --- Delegate declaration --- *)
+
+@[since: "1.0"]
+delegate_declaration
+    = attribute_section* delegate_modifier* "delegate" return_type identifier
+      type_parameter_list? '(' formal_parameter_list? ')'
+      type_parameter_constraints_clause* ';'
+    ;
+
+delegate_modifier
+    = "new" | "public" | "protected" | "internal" | "private" | "unsafe" ;
+
+(* --- Record declaration (C# 9) --- *)
+
+@[since: "9.0"]
+record_declaration
+    = attribute_section* record_modifier* "partial"?
+      "record" record_kind? identifier type_parameter_list?
+      record_parameter_list? record_base? type_parameter_constraints_clause*
+      record_body
+    ;
+
+@[since: "10.0"]
+record_kind = "class" | "struct" ;
+
+@[since: "9.0"]
+record_modifier
+    = "new" | "public" | "protected" | "internal" | "private"
+    | "abstract" | "sealed" | "unsafe"
+    | @[since: "7.2"] "readonly"     (* for record struct *)
+    | @[since: "10.0"] "file"
+    ;
+
+@[since: "9.0"]
+record_parameter_list
+    = '(' record_parameter ( ',' record_parameter )* ')' ;
+
+@[since: "9.0"]
+record_parameter
+    = attribute_section* type identifier default_argument? ;
+
+record_base
+    = ':' type argument_list? ( ',' interface_type )*
+    | ':' interface_type ( ',' interface_type )*
+    ;
+
+record_body
+    = '{' class_member_declaration* '}' ';'?
+    | ';'
+    ;
+
+(* --- Extension declaration (C# 14) --- *)
+
+@[since: "14.0",
+  description: "Extension declarations — replaces static extension method pattern.
+    Provides extension properties, operators, and static members in addition to methods."]
+extension_declaration
+    = attribute_section* extension_modifier* "extension"
+      type_parameter_list?
+      '(' type identifier ')' type_parameter_constraints_clause*
+      extension_body
+    ;
+
+@[since: "14.0"]
+extension_modifier
+    = "public" | "internal" | "private"
+    | "static"
+    | "unsafe"
+    | @[since: "10.0"] "file"
+    ;
+
+@[since: "14.0"]
+extension_body = '{' extension_member_declaration* '}' ;
+
+@[since: "14.0"]
+extension_member_declaration
+    = method_declaration
+    | property_declaration
+    | indexer_declaration
+    | operator_declaration
+    ;
+
+(* ============================================================
+   11. TYPE PARAMETER CONSTRAINTS
+   Source: ECMA-334 §15.2.5
+   ============================================================ *)
+
+@[since: "2.0"]
+type_parameter_list = '<' type_parameter ( ',' type_parameter )* '>' ;
+
+@[since: "2.0"]
+type_parameter_constraints_clause
+    = "where" type_parameter ':' type_parameter_constraints ;
+
+@[since: "2.0"]
+type_parameter_constraints
+    = primary_constraint ( ',' secondary_constraint )* ( ',' constructor_constraint )?
+    | secondary_constraint ( ',' secondary_constraint )* ( ',' constructor_constraint )?
+    | constructor_constraint
+    ;
+
+@[since: "2.0"]
+primary_constraint
+    = class_type nullable_type_annotation?
+    | "class" nullable_type_annotation?
+    | "struct"
+    | @[since: "7.3"] "unmanaged"
+    | @[since: "9.0"] "notnull"
+    | @[since: "9.0"] "default"     (* only in override/interface impl context *)
+    ;
+
+@[since: "2.0"]
+secondary_constraint
+    = interface_type
+    | type_parameter
+    | @[since: "13.0"] "allows" "ref" "struct"
+    ;
+
+@[since: "2.0"]
+constructor_constraint = "new" '(' ')' ;
+
+(* ============================================================
+   12. CLASS MEMBERS
+   Source: ECMA-334 §15.3, extended through C# 14
+   ============================================================ *)
+
+@[since: "1.0"]
+class_member_declaration
+    = constant_declaration
+    | field_declaration
+    | method_declaration
+    | property_declaration
+    | event_declaration
+    | indexer_declaration
+    | operator_declaration
+    | constructor_declaration
+    | finalizer_declaration
+    | static_constructor_declaration
+    | type_declaration
+    ;
+
+@[since: "1.0"]
+struct_member_declaration
+    = class_member_declaration ;
+    (* Struct members are same as class members with some restrictions 
+       enforced semantically, not syntactically *)
+
+(* --- Constant member --- *)
+
+@[since: "1.0"]
+constant_declaration
+    = attribute_section* member_modifier* "const" type constant_declarators ';' ;
+
+(* --- Field --- *)
+
+@[since: "1.0"]
+field_declaration
+    = attribute_section* member_modifier* type variable_declarators ';' ;
+
+variable_declarators
+    = variable_declarator ( ',' variable_declarator )* ;
+
+variable_declarator
+    = identifier ( '=' variable_initializer )? ;
+
+(* --- Method --- *)
+
+@[since: "1.0"]
+method_declaration
+    = method_header method_body ;
+
+method_header
+    = attribute_section* method_modifier* "partial"? return_type
+      member_name type_parameter_list? '(' formal_parameter_list? ')'
+      type_parameter_constraints_clause*
+    ;
+
+@[since: "1.0"]
+method_modifier
+    = member_modifier ;
+
+@[since: "1.0"]
+return_type
+    = type
+    | "void"
+    | @[since: "7.0"] "ref" "readonly"? type
+    ;
+
+@[since: "1.0"]
+member_name
+    = identifier
+    | interface_type '.' identifier
+    ;
+
+@[since: "1.0"]
+method_body
+    = block
+    | "=>" expression ';'
+    | @[since: "7.0"] "=>" "ref" variable_reference ';'
+    | ';'
+    ;
+
+(* --- Formal parameters --- *)
+
+@[since: "1.0"]
+formal_parameter_list
+    = fixed_parameters ( ',' parameter_array )?
+    | parameter_array
+    ;
+
+@[since: "1.0"]
+fixed_parameters
+    = fixed_parameter ( ',' fixed_parameter )* ;
+
+@[since: "1.0"]
+fixed_parameter
+    = attribute_section* parameter_modifier* type identifier default_argument? ;
+
+@[since: "1.0"]
+parameter_modifier
+    = "ref"
+    | "out"
+    | "this"       (* extension method *)
+    | @[since: "7.2"]  "in"
+    | @[since: "11.0"] "scoped"
+    | @[since: "12.0"] "params"
+    ;
+
+@[since: "4.0"]
+default_argument = '=' expression ;
+
+@[since: "1.0"]
+parameter_array
+    = attribute_section* "params" type identifier ;
+
+(* --- Property --- *)
+
+@[since: "1.0"]
+property_declaration
+    = attribute_section* member_modifier* "partial"? type member_name
+      property_body
+    ;
+
+@[since: "1.0"]
+property_body
+    = '{' accessor_declarations '}'
+    | @[since: "6.0"] "=>" expression ';'
+    | '{' accessor_declarations '}' '=' expression ';'
+    ;
+
+@[since: "1.0"]
+accessor_declarations
+    = get_accessor_declaration set_accessor_declaration?
+    | set_accessor_declaration get_accessor_declaration?
+    ;
+
+@[since: "1.0"]
+get_accessor_declaration
+    = attribute_section* accessor_modifier? "get" accessor_body ;
+
+@[since: "1.0"]
+set_accessor_declaration
+    = attribute_section* accessor_modifier?
+      ( "set" | @[since: "9.0"] "init" ) accessor_body ;
+
+@[since: "2.0"]
+accessor_modifier
+    = "protected" | "internal" | "private"
+    | "protected" "internal" | "private" "protected"
+    ;
+
+@[since: "1.0"]
+accessor_body
+    = block
+    | @[since: "6.0"] "=>" expression ';'
+    | ';'
+    ;
+
+(* --- Event --- *)
+
+@[since: "1.0"]
+event_declaration
+    = attribute_section* member_modifier* "partial"? "event" type
+      ( variable_declarators ';'
+      | member_name '{' event_accessor_declarations '}' )
+    ;
+
+event_accessor_declarations
+    = add_accessor_declaration remove_accessor_declaration
+    | remove_accessor_declaration add_accessor_declaration
+    ;
+
+add_accessor_declaration
+    = attribute_section* "add" block ;
+
+remove_accessor_declaration
+    = attribute_section* "remove" block ;
+
+(* --- Indexer --- *)
+
+@[since: "1.0"]
+indexer_declaration
+    = attribute_section* member_modifier* type
+      ( identifier '.' )? "this" '[' formal_parameter_list ']'
+      indexer_body
+    ;
+
+indexer_body
+    = '{' accessor_declarations '}'
+    | @[since: "6.0"] "=>" expression ';'
+    ;
+
+(* --- Operator --- *)
+
+@[since: "1.0"]
+operator_declaration
+    = attribute_section* operator_modifier+ operator_declarator operator_body ;
+
+operator_modifier
+    = "public" | "static" | "extern" | "unsafe"
+    | @[since: "11.0"] "abstract"
+    | @[since: "11.0"] "virtual"
+    | @[since: "11.0"] "sealed"
+    | @[since: "11.0"] "override"
+    | @[since: "11.0"] "checked"
+    ;
+
+operator_declarator
+    = unary_operator_declarator
+    | binary_operator_declarator
+    | conversion_operator_declarator
+    ;
+
+unary_operator_declarator
+    = type "operator" overloadable_unary_operator '(' type identifier ')' ;
+
+overloadable_unary_operator
+    = '+' | '-' | '!' | '~' | "++" | "--" | "true" | "false"
+    | @[since: "11.0"] "checked"     (* checked operator overloads *)
+    ;
+
+binary_operator_declarator
+    = type "operator" overloadable_binary_operator
+      '(' type identifier ',' type identifier ')'
+    ;
+
+overloadable_binary_operator
+    = '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^'
+    | "<<" | right_shift
+    | @[since: "11.0"] unsigned_right_shift
+    | "==" | "!=" | '<' | '>' | "<=" | ">="
+    ;
+
+conversion_operator_declarator
+    = ( "implicit" | "explicit" ) "operator" "checked"? type '(' type identifier ')' ;
+
+operator_body
+    = block
+    | @[since: "6.0"] "=>" expression ';'
+    | ';'
+    ;
+
+(* --- Constructor --- *)
+
+@[since: "1.0"]
+constructor_declaration
+    = attribute_section* constructor_modifier* "partial"?
+      identifier '(' formal_parameter_list? ')' constructor_initializer? constructor_body
+    ;
+
+constructor_modifier
+    = "public" | "protected" | "internal" | "private" | "extern" | "unsafe" ;
+
+constructor_initializer
+    = ':' "this" '(' argument_list? ')'
+    | ':' "base" '(' argument_list? ')'
+    ;
+
+constructor_body
+    = block
+    | @[since: "6.0"] "=>" expression ';'
+    | ';'
+    ;
+
+(* --- Primary constructor (C# 12) --- *)
+
+@[since: "12.0",
+  description: "Primary constructor parameters declared in the type header.
+    The parameter list in class/struct declarations serves as primary constructor.
+    Captured in class_declaration/struct_declaration/record_declaration 
+    via the record_parameter_list production. For classes and structs (non-record),
+    primary constructor parameters are available in initializers and base calls."]
+
+(* Note: Primary constructors for non-record types reuse the record_parameter_list
+   syntax but are attached to class/struct declarations. The grammar for this is:
+   
+   class_declaration = ... identifier type_parameter_list? 
+                       primary_constructor_parameter_list? class_base? ... ;
+   
+   primary_constructor_parameter_list = '(' parameter ( ',' parameter )* ')' ;
+   
+   This is a known simplification in this grammar. *)
+
+(* --- Partial constructor (C# 14) --- *)
+
+@[since: "14.0",
+  description: "Partial constructors — declaring and implementing parts can be in different files.
+    Uses 'partial' modifier on constructor declarations."]
+
+(* --- Finalizer --- *)
+
+@[since: "1.0"]
+finalizer_declaration
+    = attribute_section* "extern"? '~' identifier '(' ')' finalizer_body ;
+
+finalizer_body
+    = block
+    | @[since: "6.0"] "=>" expression ';'
+    | ';'
+    ;
+
+(* --- Static constructor --- *)
+
+@[since: "1.0"]
+static_constructor_declaration
+    = attribute_section* static_constructor_modifier* identifier '(' ')' static_constructor_body ;
+
+static_constructor_modifier = "static" | "extern" | "unsafe" ;
+
+static_constructor_body
+    = block
+    | @[since: "6.0"] "=>" expression ';'
+    | ';'
+    ;
+
+(* ============================================================
+   13. INTERFACE MEMBERS
+   Source: ECMA-334 §18.4, extended through C# 14
+   
+   C# 8 added default interface methods — interface members can 
+   now have bodies and most modifiers.
+   C# 11 added static abstract/virtual members.
+   ============================================================ *)
+
+@[since: "1.0"]
+interface_member_declaration
+    = interface_method_declaration
+    | interface_property_declaration
+    | interface_event_declaration
+    | interface_indexer_declaration
+    | @[since: "8.0"]  interface_constant_declaration
+    | @[since: "8.0"]  interface_field_declaration
+    | @[since: "8.0"]  interface_operator_declaration
+    | @[since: "8.0"]  interface_constructor_declaration
+    | @[since: "8.0"]  type_declaration
+    ;
+
+@[since: "1.0"]
+interface_method_declaration
+    = attribute_section* "new"? member_modifier* return_type identifier
+      type_parameter_list? '(' formal_parameter_list? ')'
+      type_parameter_constraints_clause*
+      ( ';' | method_body )
+    ;
+
+@[since: "1.0"]
+interface_property_declaration
+    = attribute_section* "new"? member_modifier* type identifier
+      '{' interface_accessors '}'
+    | @[since: "8.0"] attribute_section* "new"? member_modifier* type identifier
+      property_body
+    ;
+
+interface_accessors
+    = attribute_section* "get" ';' ( attribute_section* "set" ';' )?
+    | attribute_section* "set" ';' ( attribute_section* "get" ';' )?
+    | attribute_section* "get" ';' ( attribute_section* "init" ';' )?
+    ;
+
+@[since: "1.0"]
+interface_event_declaration
+    = attribute_section* "new"? member_modifier* "event" type identifier ';'
+    | @[since: "8.0"] attribute_section* "new"? member_modifier* "event" type identifier
+      '{' event_accessor_declarations '}'
+    ;
+
+@[since: "1.0"]
+interface_indexer_declaration
+    = attribute_section* "new"? member_modifier* type "this" '[' formal_parameter_list ']'
+      '{' interface_accessors '}'
+    | @[since: "8.0"] attribute_section* "new"? member_modifier* type "this" '[' formal_parameter_list ']'
+      indexer_body
+    ;
+
+@[since: "8.0"]
+interface_constant_declaration = constant_declaration ;
+
+@[since: "8.0"]
+interface_field_declaration = field_declaration ;
+
+@[since: "8.0"]
+interface_operator_declaration = operator_declaration ;
+
+@[since: "8.0"]
+interface_constructor_declaration = constructor_declaration ;
+
+(* ============================================================
+   14. FIELD KEYWORD (C# 14)
+   
+   The 'field' contextual keyword provides access to the 
+   compiler-generated backing field in auto-properties.
+   This is context-sensitive — 'field' is only recognized
+   inside property accessor bodies.
+   
+   No syntactic grammar change is needed; 'field' is resolved
+   as an identifier that the compiler treats specially in 
+   property accessor context. Noted here for completeness.
+   ============================================================ *)
+
+(* ============================================================
+   15. VERSION HISTORY — SYNTACTIC ADDITIONS BY C# VERSION
+   
+   Non-normative summary of syntactic grammar changes.
+   
+   C#  1.0: Base syntactic grammar
+   C#  2.0: Generics, nullable types, iterators (yield), 
+            anonymous methods, partial types, extern alias,
+            namespace alias qualifier (::)
+   C#  3.0: Implicitly typed locals (var), object/collection 
+            initializers, anonymous types, query expressions (LINQ),
+            lambda expressions, extension methods, auto-properties,
+            expression-bodied methods (partial)
+   C#  4.0: dynamic type, named/optional arguments
+   C#  5.0: async/await
+   C#  6.0: Expression-bodied members, auto-property initializers,
+            null-conditional (?.), interpolated strings ($""),
+            nameof, exception filters (when), static using,
+            index initializers
+   C#  7.0: Tuples and deconstruction, pattern matching (is pattern,
+            switch case pattern), out variables, local functions,
+            ref returns/locals, throw expressions, default literal,
+            digit separators, binary literals, discards
+   C#  7.1: async Main, default literal, inferred tuple names
+   C#  7.2: in parameters, ref readonly, readonly struct, ref struct,
+            stackalloc initializers, conditional ref
+   C#  7.3: unmanaged/notnull constraints, pattern-based fixed,
+            ref local reassignment, stackalloc in nested
+   C#  8.0: Nullable reference types, switch expressions, 
+            property patterns, positional patterns, tuple patterns,
+            using declarations, static local functions, 
+            async disposable (await using), ranges/indices,
+            null-coalescing assignment (??=), default interface methods,
+            recursive patterns, discard pattern
+   C#  9.0: Records, top-level statements, init accessors,
+            target-typed new, target-typed ??, pattern combinators
+            (and/or/not), relational patterns, function pointers,
+            static anonymous functions, covariant returns,
+            native ints (nint/nuint), lambda discard parameters
+   C# 10.0: Record structs, global usings, file-scoped namespaces,
+            extended property patterns, constant interpolated strings,
+            lambda improvements (natural type, return type, attributes),
+            CallerArgumentExpression, enhanced #line directive
+   C# 11.0: Raw string literals, required members, static abstract 
+            interface members, list patterns, UTF-8 strings (u8),
+            generic math, file-local types, ref fields, scoped,
+            unsigned right-shift (>>>), checked operators,
+            pattern match Span<char> on string constant
+   C# 12.0: Primary constructors, collection expressions [...],
+            inline arrays, optional parameters in lambdas,
+            alias any type, interceptors (experimental),
+            ref readonly parameters
+   C# 13.0: params collections, allows ref struct constraint,
+            ref/unsafe in iterators and async, Lock type,
+            overload resolution priority, implicit indexer access
+   C# 14.0: Extension declarations, field keyword,
+            null-conditional assignment (?.P = v),
+            partial constructors and events,
+            user-defined compound assignment operators,
+            unbound generic types in nameof,
+            lambda parameter modifiers without explicit types
+   ============================================================ *)

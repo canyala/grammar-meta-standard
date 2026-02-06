@@ -1,0 +1,907 @@
+(* ============================================================
+   C# 14.0 Lexical Grammar
+   XEBNF Specification
+   
+   Source: ECMA-334 (C# 7 standard) extended through C# 14.
+   Cross-referenced with:
+     - dotnet/csharpstandard (standard-v7, draft-v8, draft-v9)
+     - dotnet/roslyn CSharp.Generated.g4
+     - Microsoft Learn C# language reference
+   
+   Conformance: Level 1 (Partial)
+   Known gaps documented inline.
+   ============================================================ *)
+
+@grammar {
+    name: "C#" ;
+    version: "14.0" ;
+    family: "csharp" ;
+    spec: "ECMA-334" ;
+    uri: "https://github.com/canyala/grammar-meta-standard/grammars/csharp/v14" ;
+    conformance: 1 ;
+    conformance_notes: "Lexical grammar covers tokens, literals, keywords, 
+        operators, and comments. Preprocessor directives use semantic 
+        predicates for line-start detection. String interpolation nesting 
+        is context-sensitive and marked accordingly. Raw string literal 
+        delimiter matching (N opening quotes = N closing quotes) exceeds 
+        context-free expressiveness and is annotated." ;
+}
+
+@predicates {
+    at_line_start: "Current position is the first non-whitespace on the line" ;
+    interpolation_context: "Currently lexing inside an interpolated string hole" ;
+    raw_string_context: "Currently lexing inside a raw string literal" ;
+}
+
+(* ============================================================
+   1. INPUT STRUCTURE
+   Source: ECMA-334 §6.3.1
+   ============================================================ *)
+
+input = input_section? ;
+
+input_section = input_section_part+ ;
+
+input_section_part
+    = input_element* NEW_LINE
+    | PP_DIRECTIVE
+    ;
+
+input_element
+    = WHITESPACE
+    | COMMENT
+    | token
+    ;
+
+(* ============================================================
+   2. LINE TERMINATORS
+   Source: ECMA-334 §6.3.2
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+NEW_LINE
+    = '\u{000D}' '\u{000A}'    (* CR LF — must be matched as pair first *)
+    | NEW_LINE_CHARACTER
+    ;
+
+@[category: "fragment"]
+NEW_LINE_CHARACTER
+    = '\u{000D}'    (* carriage return *)
+    | '\u{000A}'    (* line feed *)
+    | '\u{0085}'    (* next line *)
+    | '\u{2028}'    (* line separator *)
+    | '\u{2029}'    (* paragraph separator *)
+    ;
+
+(* ============================================================
+   3. COMMENTS
+   Source: ECMA-334 §6.3.3
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+COMMENT
+    = SINGLE_LINE_COMMENT
+    | DELIMITED_COMMENT
+    ;
+
+@[category: "fragment"]
+SINGLE_LINE_COMMENT = "//" INPUT_CHARACTER* ;
+
+@[category: "fragment"]
+INPUT_CHARACTER = ~NEW_LINE_CHARACTER ;
+
+@[category: "fragment"]
+DELIMITED_COMMENT = "/*" DELIMITED_COMMENT_SECTION* '*'+ "/" ;
+
+@[category: "fragment"]
+DELIMITED_COMMENT_SECTION
+    = '/'
+    | '*'* NOT_SLASH_OR_ASTERISK
+    ;
+
+@[category: "fragment"]
+NOT_SLASH_OR_ASTERISK = ~( '/' | '*' ) ;
+
+(* ============================================================
+   4. WHITESPACE
+   Source: ECMA-334 §6.3.4
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+WHITESPACE
+    = \p{Zs}        (* any character with Unicode class Zs *)
+    | '\u{0009}'    (* horizontal tab *)
+    | '\u{000B}'    (* vertical tab *)
+    | '\u{000C}'    (* form feed *)
+    ;
+
+(* ============================================================
+   5. TOKENS
+   Source: ECMA-334 §6.4.1
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+token
+    = identifier
+    | keyword
+    | INTEGER_LITERAL
+    | REAL_LITERAL
+    | CHARACTER_LITERAL
+    | STRING_LITERAL
+    | operator_or_punctuator
+    ;
+
+(* ============================================================
+   6. UNICODE CHARACTER ESCAPE SEQUENCES
+   Source: ECMA-334 §6.4.2
+   ============================================================ *)
+
+@[since: "1.0", category: "fragment"]
+UNICODE_ESCAPE_SEQUENCE
+    = "\\u" HEX_DIGIT{4}
+    | "\\U" HEX_DIGIT{8}
+    ;
+
+(* ============================================================
+   7. IDENTIFIERS
+   Source: ECMA-334 §6.4.3
+   
+   Note: Available_Identifier excludes keywords and contextual
+   keywords. This exclusion is context-sensitive — a contextual
+   keyword is only reserved in specific syntactic positions.
+   The lexer typically produces a generic identifier token and
+   lets the parser disambiguate. This is a known Level 1 gap.
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+identifier
+    = SIMPLE_IDENTIFIER
+    | contextual_keyword
+    ;
+
+@[since: "1.0"]
+SIMPLE_IDENTIFIER
+    = AVAILABLE_IDENTIFIER
+    | ESCAPED_IDENTIFIER
+    ;
+
+@[category: "fragment"]
+AVAILABLE_IDENTIFIER = BASIC_IDENTIFIER ;
+    (* Note: formally excludes keywords. See §6.4.3 note. *)
+
+@[category: "fragment"]
+ESCAPED_IDENTIFIER = '@' BASIC_IDENTIFIER ;
+    (* Includes keywords prefixed by @, e.g. @class *)
+
+@[category: "fragment"]
+BASIC_IDENTIFIER = IDENTIFIER_START_CHARACTER IDENTIFIER_PART_CHARACTER* ;
+
+@[category: "fragment"]
+IDENTIFIER_START_CHARACTER
+    = LETTER_CHARACTER
+    | UNDERSCORE_CHARACTER
+    ;
+
+@[category: "fragment"]
+UNDERSCORE_CHARACTER
+    = '_'
+    | "\\u005f"         (* Unicode escape for underscore *)
+    | "\\u005F"
+    | "\\U0000005f"
+    | "\\U0000005F"
+    ;
+
+@[category: "fragment"]
+IDENTIFIER_PART_CHARACTER
+    = LETTER_CHARACTER
+    | DECIMAL_DIGIT_CHARACTER
+    | CONNECTING_CHARACTER
+    | COMBINING_CHARACTER
+    | FORMATTING_CHARACTER
+    ;
+
+@[category: "fragment",
+  description: "Unicode categories L (all subcategories) and Nl"]
+LETTER_CHARACTER
+    = \p{L}
+    | \p{Nl}
+    | UNICODE_ESCAPE_SEQUENCE   (* only if escape resolves to L or Nl *)
+    ;
+
+@[category: "fragment", description: "Unicode category Nd"]
+DECIMAL_DIGIT_CHARACTER
+    = \p{Nd}
+    | UNICODE_ESCAPE_SEQUENCE   (* only if escape resolves to Nd *)
+    ;
+
+@[category: "fragment", description: "Unicode categories Mn and Mc"]
+COMBINING_CHARACTER
+    = \p{Mn}
+    | \p{Mc}
+    | UNICODE_ESCAPE_SEQUENCE   (* only if escape resolves to Mn or Mc *)
+    ;
+
+@[category: "fragment", description: "Unicode category Pc"]
+CONNECTING_CHARACTER
+    = \p{Pc}
+    | UNICODE_ESCAPE_SEQUENCE   (* only if escape resolves to Pc *)
+    ;
+
+@[category: "fragment", description: "Unicode category Cf"]
+FORMATTING_CHARACTER
+    = \p{Cf}
+    | UNICODE_ESCAPE_SEQUENCE   (* only if escape resolves to Cf *)
+    ;
+
+(* ============================================================
+   8. KEYWORDS
+   Source: ECMA-334 §6.4.4, extended through C# 14
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+keyword
+    = "abstract"  | "as"        | "base"      | "bool"
+    | "break"     | "byte"      | "case"      | "catch"
+    | "char"      | "checked"   | "class"     | "const"
+    | "continue"  | "decimal"   | "default"   | "delegate"
+    | "do"        | "double"    | "else"      | "enum"
+    | "event"     | "explicit"  | "extern"    | "false"
+    | "finally"   | "fixed"     | "float"     | "for"
+    | "foreach"   | "goto"      | "if"        | "implicit"
+    | "in"        | "int"       | "interface" | "internal"
+    | "is"        | "lock"      | "long"      | "namespace"
+    | "new"       | "null"      | "object"    | "operator"
+    | "out"       | "override"  | "params"    | "private"
+    | "protected" | "public"    | "readonly"  | "ref"
+    | "return"    | "sbyte"     | "sealed"    | "short"
+    | "sizeof"    | "stackalloc"| "static"    | "string"
+    | "struct"    | "switch"    | "this"      | "throw"
+    | "true"      | "try"       | "typeof"    | "uint"
+    | "ulong"     | "unchecked" | "unsafe"    | "ushort"
+    | "using"     | "virtual"   | "void"      | "volatile"
+    | "while"
+    ;
+
+(* ------------------------------------------------------------ 
+   Contextual keywords
+   
+   These identifiers have special meaning only in certain
+   syntactic contexts. They are valid identifiers elsewhere.
+   The lexer emits them as identifiers; the parser resolves
+   context. Listed here for completeness and version tracking.
+   ------------------------------------------------------------ *)
+
+@[since: "1.0", category: "lexical",
+  description: "Contextual keywords — identifiers with special meaning in specific syntactic positions"]
+contextual_keyword
+    = @[since: "1.0"]  "add"
+    | @[since: "2.0"]  "alias"
+    | @[since: "3.0"]  "ascending"
+    | @[since: "5.0"]  "async"
+    | @[since: "5.0"]  "await"
+    | @[since: "3.0"]  "by"
+    | @[since: "3.0"]  "descending"
+    | @[since: "4.0"]  "dynamic"
+    | @[since: "3.0"]  "equals"
+    | @[since: "3.0"]  "from"
+    | @[since: "1.0"]  "get"
+    | @[since: "2.0"]  "global"
+    | @[since: "3.0"]  "group"
+    | @[since: "3.0"]  "into"
+    | @[since: "3.0"]  "join"
+    | @[since: "3.0"]  "let"
+    | @[since: "6.0"]  "nameof"
+    | @[since: "7.3"]  "notnull"
+    | @[since: "3.0"]  "on"
+    | @[since: "3.0"]  "orderby"
+    | @[since: "2.0"]  "partial"
+    | @[since: "1.0"]  "remove"
+    | @[since: "3.0"]  "select"
+    | @[since: "1.0"]  "set"
+    | @[since: "7.3"]  "unmanaged"
+    | @[since: "1.0"]  "value"
+    | @[since: "3.0"]  "var"
+    | @[since: "7.0"]  "when"
+    | @[since: "2.0"]  "where"
+    | @[since: "2.0"]  "yield"
+    | @[since: "7.0"]  "and"
+    | @[since: "7.0"]  "or"
+    | @[since: "7.0"]  "not"
+    | @[since: "9.0"]  "init"
+    | @[since: "9.0"]  "record"
+    | @[since: "9.0"]  "with"
+    | @[since: "9.0"]  "managed"
+    | @[since: "9.0"]  "nint"
+    | @[since: "9.0"]  "nuint"
+    | @[since: "10.0"] "global"     (* global using context *)
+    | @[since: "10.0"] "file"
+    | @[since: "10.0"] "scoped"
+    | @[since: "11.0"] "required"
+    | @[since: "13.0"] "allows"
+    | @[since: "14.0"] "extension"
+    | @[since: "14.0"] "field"
+    ;
+
+(* ------------------------------------------------------------ 
+   Discard token
+   Source: ECMA-334 §6.4.3 (C# 7.0)
+   ------------------------------------------------------------ *)
+
+@[since: "7.0", category: "lexical",
+  description: "Standalone underscore as discard — context-sensitive"]
+discard_token = '_' ;
+
+(* ============================================================
+   9. LITERALS
+   Source: ECMA-334 §6.4.5
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+literal
+    = boolean_literal
+    | INTEGER_LITERAL
+    | REAL_LITERAL
+    | CHARACTER_LITERAL
+    | STRING_LITERAL
+    | null_literal
+    ;
+
+(* ------------------------------------------------------------ 
+   9.1 Boolean literals
+   Source: ECMA-334 §6.4.5.2
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+boolean_literal = "true" | "false" ;
+
+(* ------------------------------------------------------------ 
+   9.2 Integer literals
+   Source: ECMA-334 §6.4.5.3
+   
+   Binary literals added in C# 7.0.
+   Digit separators (_) added in C# 7.0.
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+INTEGER_LITERAL
+    = DECIMAL_INTEGER_LITERAL
+    | HEXADECIMAL_INTEGER_LITERAL
+    | @[since: "7.0"] BINARY_INTEGER_LITERAL
+    ;
+
+@[category: "fragment"]
+DECIMAL_INTEGER_LITERAL
+    = DECIMAL_DIGIT DECORATED_DECIMAL_DIGIT* INTEGER_TYPE_SUFFIX? ;
+
+@[category: "fragment", since: "7.0",
+  description: "Digit separator support — underscore before digit"]
+DECORATED_DECIMAL_DIGIT = '_'* DECIMAL_DIGIT ;
+
+@[category: "fragment"]
+DECIMAL_DIGIT = '0'..'9' ;
+
+@[category: "fragment"]
+INTEGER_TYPE_SUFFIX
+    = 'U' | 'u' | 'L' | 'l'
+    | "UL" | "Ul" | "uL" | "ul"
+    | "LU" | "Lu" | "lU" | "lu"
+    ;
+
+@[category: "fragment"]
+HEXADECIMAL_INTEGER_LITERAL
+    = ( "0x" | "0X" ) DECORATED_HEX_DIGIT+ INTEGER_TYPE_SUFFIX? ;
+
+@[category: "fragment"]
+DECORATED_HEX_DIGIT = '_'* HEX_DIGIT ;
+
+@[category: "fragment"]
+HEX_DIGIT = '0'..'9' | 'A'..'F' | 'a'..'f' ;
+
+@[category: "fragment", since: "7.0"]
+BINARY_INTEGER_LITERAL
+    = ( "0b" | "0B" ) DECORATED_BINARY_DIGIT+ INTEGER_TYPE_SUFFIX? ;
+
+@[category: "fragment"]
+DECORATED_BINARY_DIGIT = '_'* BINARY_DIGIT ;
+
+@[category: "fragment"]
+BINARY_DIGIT = '0' | '1' ;
+
+(* ------------------------------------------------------------ 
+   9.3 Real literals
+   Source: ECMA-334 §6.4.5.4
+   ------------------------------------------------------------ *)
+
+@[since: "1.0", category: "lexical"]
+REAL_LITERAL
+    = DECIMAL_DIGIT DECORATED_DECIMAL_DIGIT* '.' DECIMAL_DIGIT DECORATED_DECIMAL_DIGIT* EXPONENT_PART? REAL_TYPE_SUFFIX?
+    | '.' DECIMAL_DIGIT DECORATED_DECIMAL_DIGIT* EXPONENT_PART? REAL_TYPE_SUFFIX?
+    | DECIMAL_DIGIT DECORATED_DECIMAL_DIGIT* EXPONENT_PART REAL_TYPE_SUFFIX?
+    | DECIMAL_DIGIT DECORATED_DECIMAL_DIGIT* REAL_TYPE_SUFFIX
+    ;
+
+@[category: "fragment"]
+EXPONENT_PART = ( 'e' | 'E' ) SIGN? DECIMAL_DIGIT DECORATED_DECIMAL_DIGIT* ;
+
+@[category: "fragment"]
+SIGN = '+' | '-' ;
+
+@[category: "fragment"]
+REAL_TYPE_SUFFIX = 'F' | 'f' | 'D' | 'd' | 'M' | 'm' ;
+
+(* ------------------------------------------------------------ 
+   9.4 Character literals
+   Source: ECMA-334 §6.4.5.5
+   ------------------------------------------------------------ *)
+
+@[since: "1.0", category: "lexical"]
+CHARACTER_LITERAL = "'" CHARACTER "'" ;
+
+@[category: "fragment"]
+CHARACTER
+    = SINGLE_CHARACTER
+    | SIMPLE_ESCAPE_SEQUENCE
+    | HEXADECIMAL_ESCAPE_SEQUENCE
+    | UNICODE_ESCAPE_SEQUENCE
+    ;
+
+@[category: "fragment"]
+SINGLE_CHARACTER
+    = ~( "'" | '\\' | NEW_LINE_CHARACTER ) ;
+
+@[category: "fragment"]
+SIMPLE_ESCAPE_SEQUENCE
+    = "\\'" | '\\"' | "\\\\" | "\\0" | "\\a" | "\\b"
+    | "\\f" | "\\n" | "\\r"  | "\\t" | "\\v"
+    ;
+
+@[category: "fragment"]
+HEXADECIMAL_ESCAPE_SEQUENCE
+    = "\\x" HEX_DIGIT HEX_DIGIT? HEX_DIGIT? HEX_DIGIT? ;
+
+(* ------------------------------------------------------------ 
+   9.5 String literals
+   Source: ECMA-334 §6.4.5.6, extended through C# 14
+   
+   String literal taxonomy:
+     C# 1.0: Regular strings, verbatim strings (@"")
+     C# 6.0: Interpolated strings ($""), interpolated verbatim ($@"")
+     C# 11:  Raw string literals ("""), raw interpolated ($""")
+             UTF-8 string suffix (u8)
+   ------------------------------------------------------------ *)
+
+@[since: "1.0", category: "lexical"]
+STRING_LITERAL
+    = REGULAR_STRING_LITERAL
+    | VERBATIM_STRING_LITERAL
+    | @[since: "11.0"] RAW_STRING_LITERAL
+    ;
+
+(* --- Regular string literals --- *)
+
+@[category: "fragment"]
+REGULAR_STRING_LITERAL
+    = '"' REGULAR_STRING_LITERAL_CHARACTER* '"' UTF8_SUFFIX? ;
+
+@[category: "fragment"]
+REGULAR_STRING_LITERAL_CHARACTER
+    = SINGLE_REGULAR_STRING_LITERAL_CHARACTER
+    | SIMPLE_ESCAPE_SEQUENCE
+    | HEXADECIMAL_ESCAPE_SEQUENCE
+    | UNICODE_ESCAPE_SEQUENCE
+    ;
+
+@[category: "fragment"]
+SINGLE_REGULAR_STRING_LITERAL_CHARACTER
+    = ~( '"' | '\\' | NEW_LINE_CHARACTER ) ;
+
+(* --- Verbatim string literals --- *)
+
+@[category: "fragment"]
+VERBATIM_STRING_LITERAL
+    = '@"' VERBATIM_STRING_LITERAL_CHARACTER* '"' UTF8_SUFFIX? ;
+
+@[category: "fragment"]
+VERBATIM_STRING_LITERAL_CHARACTER
+    = SINGLE_VERBATIM_STRING_LITERAL_CHARACTER
+    | QUOTE_ESCAPE_SEQUENCE
+    ;
+
+@[category: "fragment"]
+SINGLE_VERBATIM_STRING_LITERAL_CHARACTER = ~'"' ;
+
+@[category: "fragment"]
+QUOTE_ESCAPE_SEQUENCE = '""' ;
+
+(* --- Raw string literals (C# 11) --- *)
+
+@[since: "11.0", category: "lexical",
+  description: "Raw string literals delimited by 3+ double quotes. 
+    The number of opening quotes must equal the number of closing quotes.
+    This constraint is beyond context-free and cannot be fully expressed 
+    in EBNF. The grammar below captures the minimum (3-quote) case.
+    Implementations must track delimiter length dynamically.",
+  see: "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/tokens/raw-string"]
+RAW_STRING_LITERAL
+    = SINGLE_LINE_RAW_STRING_LITERAL
+    | MULTI_LINE_RAW_STRING_LITERAL
+    ;
+
+@[category: "fragment",
+  description: "Single-line raw string: content on same line as delimiters"]
+SINGLE_LINE_RAW_STRING_LITERAL
+    = RAW_STRING_OPEN RAW_STRING_CONTENT_CHAR* RAW_STRING_CLOSE UTF8_SUFFIX? ;
+
+@[category: "fragment",
+  description: "Multi-line raw string: opening quotes, newline, content lines, closing quotes"]
+MULTI_LINE_RAW_STRING_LITERAL
+    = RAW_STRING_OPEN NEW_LINE RAW_STRING_LINE* WHITESPACE* RAW_STRING_CLOSE UTF8_SUFFIX? ;
+
+@[category: "fragment"]
+RAW_STRING_LINE = RAW_STRING_CONTENT_CHAR* NEW_LINE ;
+
+@[category: "fragment",
+  description: "Minimum 3-quote delimiter. Actual implementations allow N >= 3."]
+RAW_STRING_OPEN = '"'{3,} ;
+
+@[category: "fragment",
+  description: "Must match exactly the number of quotes in RAW_STRING_OPEN.
+    This matching constraint is context-sensitive — annotated as such."]
+RAW_STRING_CLOSE = {? raw_string_context ?} '"'{3,} ;
+
+@[category: "fragment",
+  description: "Any character that is not part of a closing delimiter sequence"]
+RAW_STRING_CONTENT_CHAR
+    = ~'"'
+    | '"' (?! '"' '"' )     (* quote that is not start of 3+ quote sequence *)
+    ;
+
+(* --- UTF-8 string suffix (C# 11) --- *)
+
+@[since: "11.0", category: "fragment",
+  description: "UTF-8 string literal suffix, case-insensitive"]
+UTF8_SUFFIX = "u8" | "U8" ;
+
+(* ------------------------------------------------------------ 
+   9.6 Interpolated strings
+   Source: ECMA-334 §12.8.3, extended through C# 14
+   
+   Interpolated strings are lexically context-sensitive:
+   the tokens within interpolation holes ({...}) follow
+   normal lexical rules, while the surrounding string
+   content follows string literal rules. This interleaving
+   requires lexer mode switching.
+   
+   Raw interpolated strings (C# 11) use N dollar signs
+   to set the interpolation delimiter to N curly braces,
+   which is also beyond context-free.
+   
+   This section describes the token boundaries. Full
+   interpolation parsing is in the syntactic grammar.
+   ------------------------------------------------------------ *)
+
+@[since: "6.0", category: "lexical",
+  description: "Interpolated string — lexically context-sensitive.
+    Requires lexer mode switching between string content and expression holes."]
+INTERPOLATED_STRING_START
+    = INTERPOLATED_REGULAR_STRING_START
+    | INTERPOLATED_VERBATIM_STRING_START
+    | @[since: "11.0"] INTERPOLATED_RAW_STRING_START
+    ;
+
+@[category: "fragment"]
+INTERPOLATED_REGULAR_STRING_START = '$"' ;
+
+@[category: "fragment", since: "6.0"]
+INTERPOLATED_VERBATIM_STRING_START
+    = '$@"'
+    | '@$"'     (* both orderings accepted *)
+    ;
+
+@[since: "11.0", category: "fragment",
+  description: "N dollar signs followed by M quotes (M >= 3).
+    N determines how many braces start an interpolation hole.
+    M determines the closing delimiter length.
+    Both N and M are context-sensitive counters."]
+INTERPOLATED_RAW_STRING_START = '$'+ '"'{3,} ;
+
+@[category: "fragment",
+  description: "String content between interpolation holes in regular interpolated strings"]
+INTERPOLATED_REGULAR_STRING_ELEMENT
+    = INTERPOLATED_REGULAR_STRING_CHARACTER
+    | SIMPLE_ESCAPE_SEQUENCE
+    | HEXADECIMAL_ESCAPE_SEQUENCE
+    | UNICODE_ESCAPE_SEQUENCE
+    | OPEN_BRACE_ESCAPE
+    | CLOSE_BRACE_ESCAPE
+    ;
+
+@[category: "fragment"]
+INTERPOLATED_REGULAR_STRING_CHARACTER
+    = ~( '"' | '\\' | '{' | '}' | NEW_LINE_CHARACTER ) ;
+
+@[category: "fragment"]
+INTERPOLATED_VERBATIM_STRING_ELEMENT
+    = INTERPOLATED_VERBATIM_STRING_CHARACTER
+    | QUOTE_ESCAPE_SEQUENCE
+    | OPEN_BRACE_ESCAPE
+    | CLOSE_BRACE_ESCAPE
+    ;
+
+@[category: "fragment"]
+INTERPOLATED_VERBATIM_STRING_CHARACTER
+    = ~( '"' | '{' | '}' ) ;
+
+@[category: "fragment"]
+OPEN_BRACE_ESCAPE = "{{" ;
+
+@[category: "fragment"]
+CLOSE_BRACE_ESCAPE = "}}" ;
+
+(* ------------------------------------------------------------ 
+   9.7 Null literal
+   Source: ECMA-334 §6.4.5.7
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+null_literal = "null" ;
+
+(* ============================================================
+   10. OPERATORS AND PUNCTUATORS
+   Source: ECMA-334 §6.4.6, extended through C# 14
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+operator_or_punctuator
+    (* Single-character operators and punctuators *)
+    = '{'  | '}'  | '['  | ']'  | '('  | ')'
+    | '.'  | ','  | ':'  | ';'
+    | '+'  | '-'  | '*'  | '/'  | '%'
+    | '&'  | '|'  | '^'  | '!'  | '~'
+    | '='  | '<'  | '>'  | '?'
+
+    (* Multi-character operators *)
+    | "++"  | "--"
+    | "&&"  | "||"
+    | "->"  | "=>"
+    | "=="  | "!="  | "<="  | ">="
+    | "+="  | "-="  | "*="  | "/="  | "%="
+    | "&="  | "|="  | "^="
+    | "<<"  | "<<="
+    | "::"
+
+    (* Null-related operators *)
+    | @[since: "2.0"]  "??"
+    | @[since: "8.0"]  "??="
+
+    (* Range operator *)
+    | @[since: "8.0"]  ".."
+    ;
+
+(* ------------------------------------------------------------ 
+   Right-shift operators
+   Source: ECMA-334 §6.4.6
+   
+   Note: >> and >>= are NOT single tokens.
+   They are parsed as two > tokens to avoid ambiguity 
+   with nested generic type arguments like List<List<int>>.
+   The parser combines them contextually.
+   ------------------------------------------------------------ *)
+
+@[since: "1.0", category: "contextual",
+  description: "Right-shift is two > tokens combined by parser context"]
+right_shift = '>' '>' ;
+
+@[since: "1.0", category: "contextual"]
+right_shift_assignment = '>' ">=" ;
+
+(* ------------------------------------------------------------ 
+   Unsigned right-shift (C# 11)
+   ------------------------------------------------------------ *)
+
+@[since: "11.0", category: "contextual",
+  description: "Unsigned right-shift — three > tokens combined by parser"]
+unsigned_right_shift = '>' '>' '>' ;
+
+@[since: "11.0", category: "contextual"]
+unsigned_right_shift_assignment = '>' '>' ">=" ;
+
+(* ============================================================
+   11. PREPROCESSOR DIRECTIVES
+   Source: ECMA-334 §6.5
+   
+   Preprocessor directives are line-oriented and only 
+   recognised at the beginning of a line (after optional 
+   whitespace). This line-start constraint requires a 
+   semantic predicate.
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical",
+  description: "Preprocessor directives — line-oriented, context-sensitive start position"]
+PP_DIRECTIVE = PP_START PP_KIND PP_NEW_LINE ;
+
+@[category: "fragment",
+  description: "# preceded only by whitespace on the line — requires position check"]
+PP_START = {? at_line_start ?} PP_WHITESPACE? '#' PP_WHITESPACE? ;
+
+@[category: "fragment"]
+PP_WHITESPACE = ( \p{Zs} | '\u{0009}' | '\u{000B}' | '\u{000C}' )+ ;
+
+@[category: "fragment"]
+PP_NEW_LINE = PP_WHITESPACE? SINGLE_LINE_COMMENT? NEW_LINE ;
+
+@[category: "fragment"]
+PP_KIND
+    = PP_DECLARATION
+    | PP_CONDITIONAL
+    | PP_LINE
+    | PP_DIAGNOSTIC
+    | PP_REGION
+    | @[since: "2.0"]  PP_PRAGMA
+    | @[since: "8.0"]  PP_NULLABLE
+    ;
+
+(* --- Definition directives --- *)
+
+@[category: "fragment"]
+PP_DECLARATION
+    = "define" PP_WHITESPACE PP_CONDITIONAL_SYMBOL
+    | "undef"  PP_WHITESPACE PP_CONDITIONAL_SYMBOL
+    ;
+
+@[category: "fragment"]
+PP_CONDITIONAL_SYMBOL = BASIC_IDENTIFIER ;
+    (* Must not equal "true" or "false" *)
+
+(* --- Conditional compilation directives --- *)
+
+@[category: "fragment"]
+PP_CONDITIONAL
+    = PP_IF_SECTION
+    | PP_ELIF_SECTION
+    | PP_ELSE_SECTION
+    | PP_ENDIF
+    ;
+
+@[category: "fragment"]
+PP_IF_SECTION = "if" PP_WHITESPACE PP_EXPRESSION ;
+
+@[category: "fragment"]
+PP_ELIF_SECTION = "elif" PP_WHITESPACE PP_EXPRESSION ;
+
+@[category: "fragment"]
+PP_ELSE_SECTION = "else" ;
+
+@[category: "fragment"]
+PP_ENDIF = "endif" ;
+
+(* --- Preprocessor expressions --- *)
+
+@[category: "fragment"]
+PP_EXPRESSION = PP_WHITESPACE? PP_OR_EXPRESSION PP_WHITESPACE? ;
+
+@[category: "fragment"]
+PP_OR_EXPRESSION
+    = PP_AND_EXPRESSION ( PP_WHITESPACE? "||" PP_WHITESPACE? PP_AND_EXPRESSION )* ;
+
+@[category: "fragment"]
+PP_AND_EXPRESSION
+    = PP_EQUALITY_EXPRESSION ( PP_WHITESPACE? "&&" PP_WHITESPACE? PP_EQUALITY_EXPRESSION )* ;
+
+@[category: "fragment"]
+PP_EQUALITY_EXPRESSION
+    = PP_UNARY_EXPRESSION ( PP_WHITESPACE? ( "==" | "!=" ) PP_WHITESPACE? PP_UNARY_EXPRESSION )* ;
+
+@[category: "fragment"]
+PP_UNARY_EXPRESSION
+    = PP_PRIMARY_EXPRESSION
+    | '!' PP_WHITESPACE? PP_UNARY_EXPRESSION
+    ;
+
+@[category: "fragment"]
+PP_PRIMARY_EXPRESSION
+    = "true"
+    | "false"
+    | PP_CONDITIONAL_SYMBOL
+    | '(' PP_WHITESPACE? PP_EXPRESSION PP_WHITESPACE? ')'
+    ;
+
+(* --- Diagnostic directives --- *)
+
+@[category: "fragment"]
+PP_DIAGNOSTIC
+    = "error"   PP_MESSAGE?
+    | "warning" PP_MESSAGE?
+    ;
+
+@[category: "fragment"]
+PP_MESSAGE = PP_WHITESPACE INPUT_CHARACTER* ;
+
+(* --- Region directives --- *)
+
+@[category: "fragment"]
+PP_REGION
+    = "region"    PP_MESSAGE?
+    | "endregion" PP_MESSAGE?
+    ;
+
+(* --- Line directives --- *)
+
+@[category: "fragment"]
+PP_LINE = "line" PP_WHITESPACE PP_LINE_INDICATOR ;
+
+@[category: "fragment"]
+PP_LINE_INDICATOR
+    = DECIMAL_DIGIT+ PP_WHITESPACE PP_COMPILATION_UNIT_NAME
+    | DECIMAL_DIGIT+
+    | "default"
+    | "hidden"
+    | @[since: "11.0"] PP_LINE_SPAN_DIRECTIVE
+    ;
+
+@[since: "11.0", category: "fragment",
+  description: "Enhanced #line directive with span information for source generators"]
+PP_LINE_SPAN_DIRECTIVE
+    = '(' DECIMAL_DIGIT+ ',' DECIMAL_DIGIT+ ')' 
+      ( '-' '(' DECIMAL_DIGIT+ ',' DECIMAL_DIGIT+ ')' )?
+      PP_WHITESPACE? DECIMAL_DIGIT*
+      PP_WHITESPACE PP_COMPILATION_UNIT_NAME
+    ;
+
+@[category: "fragment"]
+PP_COMPILATION_UNIT_NAME = '"' PP_COMPILATION_UNIT_NAME_CHARACTER* '"' ;
+
+@[category: "fragment"]
+PP_COMPILATION_UNIT_NAME_CHARACTER = ~( NEW_LINE_CHARACTER | '"' ) ;
+
+(* --- Nullable directive (C# 8) --- *)
+
+@[since: "8.0", category: "fragment"]
+PP_NULLABLE = "nullable" PP_WHITESPACE PP_NULLABLE_ACTION 
+              ( PP_WHITESPACE PP_NULLABLE_TARGET )? ;
+
+@[category: "fragment"]
+PP_NULLABLE_ACTION = "disable" | "enable" | "restore" ;
+
+@[category: "fragment"]
+PP_NULLABLE_TARGET = "warnings" | "annotations" ;
+
+(* --- Pragma directive --- *)
+
+@[since: "2.0", category: "fragment"]
+PP_PRAGMA = "pragma" PP_PRAGMA_TEXT? ;
+
+@[category: "fragment"]
+PP_PRAGMA_TEXT = PP_WHITESPACE INPUT_CHARACTER* ;
+
+(* ============================================================
+   12. VERSION HISTORY — LEXICAL ADDITIONS BY C# VERSION
+   
+   This section is non-normative. It summarizes the lexical
+   changes across C# versions to support grammar diffing.
+   
+   C#  1.0: Base lexical grammar
+   C#  2.0: ?? operator, yield/partial/where contextual keywords,
+            pragma directive, global/alias contextual keywords
+   C#  3.0: var, LINQ contextual keywords (from, select, etc.)
+   C#  4.0: dynamic contextual keyword
+   C#  5.0: async/await contextual keywords
+   C#  6.0: $"" interpolated strings, nameof contextual keyword,
+            interpolated verbatim strings ($@"" and @$"")
+   C#  7.0: Binary literals (0b), digit separators (_),
+            discard (_), pattern matching keywords (when),
+            and/or/not contextual keywords, ref returns
+   C#  7.1: default literal (inferred type)
+   C#  7.2: (no lexical changes)
+   C#  7.3: notnull, unmanaged contextual keywords
+   C#  8.0: ??= operator, .. range operator,
+            #nullable directive, nullable annotations
+   C#  9.0: init, record, with, nint, nuint contextual keywords
+   C# 10.0: file, scoped, global using contextual keywords
+   C# 11.0: Raw string literals ("""), UTF-8 suffix (u8),
+            raw interpolated strings, #line span directive,
+            unsigned right shift (>>>), required contextual keyword
+   C# 12.0: (no lexical changes — collection expressions are syntactic)
+   C# 13.0: allows contextual keyword
+   C# 14.0: extension, field contextual keywords
+   ============================================================ *)
