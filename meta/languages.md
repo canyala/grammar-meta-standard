@@ -5,10 +5,10 @@
 | Language | Directory | Format | Versions | Conformance | Reference Spec |
 |----------|-----------|--------|----------|-------------|----------------|
 | C# | `grammars/csharp/` | XEBNF | 1.0 – 14.0 | Level 1 | [ECMA-334](https://ecma-international.org/publications-and-standards/standards/ecma-334/) / [dotnet/csharpstandard](https://github.com/dotnet/csharpstandard) |
-| Python | `grammars/python/` | EBNF | 3.13 | Level 0 | [python.org grammar](https://docs.python.org/3/reference/grammar.html) |
-| JavaScript | `grammars/javascript/` | EBNF | ES2024 | Level 0 | [ECMA-262](https://www.ecma-international.org/publications-and-standards/standards/ecma-262/) |
-| Java | `grammars/java/` | EBNF | 21 | Level 0 | [Java Language Spec](https://docs.oracle.com/javase/specs/) |
-| Go | `grammars/go/` | EBNF | 1.22 | Level 0 | [go.dev/ref/spec](https://go.dev/ref/spec) |
+| Go | `grammars/go/` | XEBNF | 1.13 – 1.22 | Level 1 | [Go Language Specification](https://go.dev/ref/spec) |
+| Python | `grammars/python/` | XEBNF | 3.6 – 3.13 | Level 1 | [Python Language Reference](https://docs.python.org/3/reference/) |
+| Java | `grammars/java/` | XEBNF | 5 – 21 | Level 1 | [Java Language Specification](https://docs.oracle.com/javase/specs/) |
+| JavaScript | `grammars/javascript/` | XEBNF | ES2015 – ES2024 | Level 1 | [ECMA-262](https://tc39.es/ecma262/) |
 | Turtle | `grammars/turtle/` | EBNF | 1.1 | Level 0 | [W3C Turtle](https://www.w3.org/TR/turtle/) |
 | SPARQL | `grammars/sparql/` | EBNF | 1.1 | Level 1 | [W3C SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) |
 

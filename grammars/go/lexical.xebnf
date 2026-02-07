@@ -1,0 +1,506 @@
+(* ============================================================
+   Go 1.22 Lexical Grammar
+   XEBNF Specification
+
+   Source: The Go Programming Language Specification
+     https://go.dev/ref/spec
+   Cross-referenced with:
+     - Go release notes (1.13 through 1.22)
+     - golang/go repository (src/go/scanner)
+
+   Conformance: Level 1 (Partial)
+   Known gaps documented inline.
+   ============================================================ *)
+
+@grammar {
+    name: "Go" ;
+    version: "1.22" ;
+    family: "go" ;
+    spec: "The Go Programming Language Specification" ;
+    uri: "https://go.dev/ref/spec" ;
+    conformance: 1 ;
+    conformance_notes: "Lexical grammar covers tokens, literals, keywords,
+        operators, and comments. Automatic semicolon insertion is
+        context-sensitive and documented via predicates but cannot
+        be fully expressed in context-free grammar. Unicode
+        character categories used for identifiers." ;
+}
+
+@predicates {
+    semicolon_insertion: "Automatic semicolon insertion applies after this token
+        when followed by a newline. Applies after: identifier, literal,
+        break, continue, fallthrough, return, ++, --, ), ], }" ;
+}
+
+(* ============================================================
+   1. SOURCE TEXT
+   Source: Go spec — Source code representation
+
+   Go source is UTF-8 encoded Unicode text.
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+source_file = input_element* ;
+
+input_element
+    = WHITESPACE
+    | COMMENT
+    | token
+    ;
+
+(* ============================================================
+   2. LINE TERMINATORS
+   Source: Go spec — Source code representation
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+NEW_LINE
+    = '\u{000D}' '\u{000A}'    (* CR LF — matched as pair first *)
+    | '\u{000A}'                (* LF *)
+    | '\u{000D}'                (* CR *)
+    ;
+
+(* ============================================================
+   3. WHITESPACE
+   Source: Go spec — Tokens
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+WHITESPACE
+    = '\u{0020}'    (* space *)
+    | '\u{0009}'    (* horizontal tab *)
+    | '\u{000D}'    (* carriage return *)
+    | '\u{000A}'    (* newline — also triggers semicolon insertion *)
+    ;
+
+(* ============================================================
+   4. COMMENTS
+   Source: Go spec — Comments
+
+   Line comments: // to end of line
+   General comments: /* ... */ (do not nest)
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+COMMENT
+    = LINE_COMMENT
+    | GENERAL_COMMENT
+    ;
+
+@[category: "fragment"]
+LINE_COMMENT = "//" ~NEW_LINE_CHAR* NEW_LINE? ;
+
+@[category: "fragment"]
+GENERAL_COMMENT = "/*" ( ~'*' | '*' (?! '/') )* "*/" ;
+
+@[category: "fragment"]
+NEW_LINE_CHAR = '\u{000A}' | '\u{000D}' ;
+
+(* ============================================================
+   5. TOKENS
+   Source: Go spec — Tokens
+
+   Tokens form the vocabulary of the Go language.
+   There are four classes: identifiers, keywords, operators
+   and punctuation, and literals.
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+token
+    = IDENTIFIER
+    | keyword
+    | operator_or_punctuator
+    | literal
+    ;
+
+(* ============================================================
+   6. IDENTIFIERS
+   Source: Go spec — Identifiers
+
+   identifier = letter { letter | unicode_digit }
+
+   Go identifiers use Unicode letter and digit categories.
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+IDENTIFIER = LETTER ( LETTER | UNICODE_DIGIT )* ;
+
+@[category: "fragment",
+  description: "Unicode category L (letter) plus underscore"]
+LETTER
+    = \p{L}
+    | '_'
+    ;
+
+@[category: "fragment",
+  description: "Unicode category Nd (decimal digit)"]
+UNICODE_DIGIT = \p{Nd} ;
+
+(* ------------------------------------------------------------
+   Blank identifier
+
+   The blank identifier _ is a valid identifier with special
+   semantics (discard value). Lexically it is just an identifier.
+   ------------------------------------------------------------ *)
+
+(* ------------------------------------------------------------
+   Predeclared identifiers
+
+   These are not keywords but are predeclared in the universe
+   block. They can be shadowed by user declarations.
+
+   Types:     any, bool, byte, comparable, complex64, complex128,
+              error, float32, float64, int, int8, int16, int32,
+              int64, rune, string, uint, uint8, uint16, uint32,
+              uint64, uintptr
+   Constants: true, false, iota
+   Zero value: nil
+   Functions: append, cap, clear, close, complex, copy, delete,
+              imag, len, make, max, min, new, panic, print,
+              println, real, recover
+
+   Note: 'any' (since 1.18), 'comparable' (since 1.18),
+         'clear' (since 1.21), 'max'/'min' (since 1.21)
+   ------------------------------------------------------------ *)
+
+(* ============================================================
+   7. KEYWORDS
+   Source: Go spec — Keywords
+
+   The following keywords are reserved and may not be used
+   as identifiers.
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+keyword
+    = "break"       | "default"     | "func"        | "interface"
+    | "select"      | "case"        | "defer"       | "go"
+    | "map"         | "struct"      | "chan"         | "else"
+    | "goto"        | "package"     | "switch"      | "const"
+    | "fallthrough" | "if"          | "range"       | "type"
+    | "continue"    | "for"         | "import"      | "return"
+    | "var"
+    ;
+
+(* ============================================================
+   8. LITERALS
+   Source: Go spec — Integer literals, Floating-point literals,
+           Imaginary literals, Rune literals, String literals
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+literal
+    = INTEGER_LITERAL
+    | FLOAT_LITERAL
+    | IMAGINARY_LITERAL
+    | RUNE_LITERAL
+    | STRING_LITERAL
+    ;
+
+(* ------------------------------------------------------------
+   8.1 Integer literals
+   Source: Go spec — Integer literals
+
+   Go 1.13 added binary literals (0b), octal with 0o prefix,
+   and digit separators (underscore).
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+INTEGER_LITERAL
+    = DECIMAL_LITERAL
+    | @[since: "1.13"] BINARY_LITERAL
+    | OCTAL_LITERAL
+    | HEX_LITERAL
+    ;
+
+@[category: "fragment"]
+DECIMAL_LITERAL
+    = '0'
+    | '1'..'9' ( @[since: "1.13"] '_'? DECIMAL_DIGIT )*
+    ;
+
+@[since: "1.13", category: "fragment"]
+BINARY_LITERAL = ( "0b" | "0B" ) '_'? BINARY_DIGIT ( '_'? BINARY_DIGIT )* ;
+
+@[category: "fragment"]
+OCTAL_LITERAL
+    = '0' ( @[since: "1.13"] 'o' | @[since: "1.13"] 'O' )? '_'? OCTAL_DIGIT ( '_'? OCTAL_DIGIT )*
+    ;
+
+@[category: "fragment"]
+HEX_LITERAL = ( "0x" | "0X" ) '_'? HEX_DIGIT ( '_'? HEX_DIGIT )* ;
+
+@[category: "fragment"]
+DECIMAL_DIGIT = '0'..'9' ;
+
+@[category: "fragment"]
+BINARY_DIGIT = '0' | '1' ;
+
+@[category: "fragment"]
+OCTAL_DIGIT = '0'..'7' ;
+
+@[category: "fragment"]
+HEX_DIGIT = '0'..'9' | 'a'..'f' | 'A'..'F' ;
+
+(* ------------------------------------------------------------
+   8.2 Floating-point literals
+   Source: Go spec — Floating-point literals
+
+   Go 1.13 added hexadecimal floating-point literals and
+   digit separators.
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+FLOAT_LITERAL
+    = DECIMAL_FLOAT_LITERAL
+    | @[since: "1.13"] HEX_FLOAT_LITERAL
+    ;
+
+@[category: "fragment"]
+DECIMAL_FLOAT_LITERAL
+    = DECIMAL_DIGITS '.' DECIMAL_DIGITS? DECIMAL_EXPONENT?
+    | DECIMAL_DIGITS DECIMAL_EXPONENT
+    | '.' DECIMAL_DIGITS DECIMAL_EXPONENT?
+    ;
+
+@[since: "1.13", category: "fragment"]
+HEX_FLOAT_LITERAL
+    = ( "0x" | "0X" ) HEX_MANTISSA HEX_EXPONENT ;
+
+@[category: "fragment"]
+DECIMAL_DIGITS = DECIMAL_DIGIT ( '_'? DECIMAL_DIGIT )* ;
+
+@[since: "1.13", category: "fragment"]
+HEX_MANTISSA
+    = '_'? HEX_DIGITS '.' HEX_DIGITS?
+    | '_'? HEX_DIGITS
+    | '.' HEX_DIGITS
+    ;
+
+@[category: "fragment"]
+HEX_DIGITS = HEX_DIGIT ( '_'? HEX_DIGIT )* ;
+
+@[category: "fragment"]
+DECIMAL_EXPONENT = ( 'e' | 'E' ) ( '+' | '-' )? DECIMAL_DIGITS ;
+
+@[since: "1.13", category: "fragment"]
+HEX_EXPONENT = ( 'p' | 'P' ) ( '+' | '-' )? DECIMAL_DIGITS ;
+
+(* ------------------------------------------------------------
+   8.3 Imaginary literals
+   Source: Go spec — Imaginary literals
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+IMAGINARY_LITERAL = ( DECIMAL_DIGITS | INTEGER_LITERAL | FLOAT_LITERAL ) 'i' ;
+
+(* ------------------------------------------------------------
+   8.4 Rune literals
+   Source: Go spec — Rune literals
+
+   A rune literal represents a rune constant, an integer
+   value identifying a Unicode code point.
+   ------------------------------------------------------------ *)
+
+@[since: "1.0", category: "lexical"]
+RUNE_LITERAL = "'" ( UNICODE_VALUE | BYTE_VALUE ) "'" ;
+
+@[category: "fragment"]
+UNICODE_VALUE
+    = UNICODE_CHAR
+    | LITTLE_U_VALUE
+    | BIG_U_VALUE
+    | ESCAPED_CHAR
+    ;
+
+@[category: "fragment",
+  description: "Any Unicode character except newline and single quote"]
+UNICODE_CHAR = ~( '\u{000A}' | "'" ) ;
+
+@[category: "fragment"]
+BYTE_VALUE = OCTAL_BYTE_VALUE | HEX_BYTE_VALUE ;
+
+@[category: "fragment"]
+OCTAL_BYTE_VALUE = '\\' OCTAL_DIGIT OCTAL_DIGIT OCTAL_DIGIT ;
+
+@[category: "fragment"]
+HEX_BYTE_VALUE = "\\x" HEX_DIGIT HEX_DIGIT ;
+
+@[category: "fragment"]
+LITTLE_U_VALUE = "\\u" HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT ;
+
+@[category: "fragment"]
+BIG_U_VALUE = "\\U" HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT
+                     HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT ;
+
+@[category: "fragment"]
+ESCAPED_CHAR
+    = "\\a"    (* alert *)
+    | "\\b"    (* backspace *)
+    | "\\f"    (* form feed *)
+    | "\\n"    (* newline *)
+    | "\\r"    (* carriage return *)
+    | "\\t"    (* horizontal tab *)
+    | "\\v"    (* vertical tab *)
+    | "\\\\"   (* backslash *)
+    | "\\'"    (* single quote *)
+    | "\\\""   (* double quote — only in string literals *)
+    ;
+
+(* ------------------------------------------------------------
+   8.5 String literals
+   Source: Go spec — String literals
+
+   Go has two forms of string literal:
+   - Raw string literals: `...` (backtick delimited, no escapes)
+   - Interpreted string literals: "..." (with escape sequences)
+   ------------------------------------------------------------ *)
+
+@[since: "1.0", category: "lexical"]
+STRING_LITERAL
+    = RAW_STRING_LITERAL
+    | INTERPRETED_STRING_LITERAL
+    ;
+
+@[category: "fragment",
+  description: "Raw string literal — backtick delimited, no escape processing.
+    May contain newlines. Cannot contain backticks."]
+RAW_STRING_LITERAL = '`' RAW_STRING_CHAR* '`' ;
+
+@[category: "fragment"]
+RAW_STRING_CHAR = ~'`' ;
+
+@[category: "fragment"]
+INTERPRETED_STRING_LITERAL = '"' INTERPRETED_STRING_CHAR* '"' ;
+
+@[category: "fragment"]
+INTERPRETED_STRING_CHAR
+    = INTERPRETED_STRING_UNICODE_VALUE
+    | BYTE_VALUE
+    ;
+
+@[category: "fragment",
+  description: "Any Unicode character except newline, double quote, and backslash"]
+INTERPRETED_STRING_UNICODE_VALUE
+    = ~( '\u{000A}' | '"' | '\\' )
+    | LITTLE_U_VALUE
+    | BIG_U_VALUE
+    | ESCAPED_CHAR
+    ;
+
+(* ============================================================
+   9. OPERATORS AND PUNCTUATION
+   Source: Go spec — Operators and punctuation
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+operator_or_punctuator
+    (* Arithmetic operators *)
+    = '+'   | '-'   | '*'   | '/'   | '%'
+
+    (* Bitwise operators *)
+    | '&'   | '|'   | '^'   | "<<"  | ">>"
+    | "&^"
+
+    (* Assignment operators *)
+    | "+="  | "-="  | "*="  | "/="  | "%="
+    | "&="  | "|="  | "^="  | "<<=" | ">>="
+    | "&^="
+
+    (* Comparison operators *)
+    | "=="  | "!="  | '<'   | "<="  | '>'   | ">="
+
+    (* Logical operators *)
+    | "&&"  | "||"  | '!'
+
+    (* Channel operator *)
+    | "<-"
+
+    (* Increment/decrement *)
+    | "++"  | "--"
+
+    (* Assignment *)
+    | '='   | ":="
+
+    (* Variadic *)
+    | "..."
+
+    (* Tilde — type constraint *)
+    | @[since: "1.18"] '~'
+
+    (* Punctuation *)
+    | '('   | ')'
+    | '['   | ']'
+    | '{'   | '}'
+    | ','   | '.'   | ':'   | ';'
+    ;
+
+(* ============================================================
+   10. AUTOMATIC SEMICOLON INSERTION
+   Source: Go spec — Semicolons
+
+   Go uses automatic semicolon insertion. A semicolon is
+   automatically inserted into the token stream immediately
+   after a line's final token if that token is:
+
+   - an identifier
+   - an integer, floating-point, imaginary, rune, or string literal
+   - one of: break, continue, fallthrough, return
+   - one of: ++, --, ), ], }
+
+   This is context-sensitive and cannot be expressed in
+   context-free grammar. It is documented here for
+   completeness and annotated with the semicolon_insertion
+   predicate.
+
+   Note: To allow complex statements to occupy a single line,
+   a semicolon may be omitted before a closing ) or }.
+   ============================================================ *)
+
+@[since: "1.0", category: "contextual",
+  description: "Automatic semicolon insertion — context-sensitive.
+    A semicolon is inserted after the line's final token when that
+    token is an identifier, literal, break, continue, fallthrough,
+    return, ++, --, ), ], or }. This rule is applied by the lexer
+    and requires tracking the previous token."]
+AUTO_SEMICOLON = {? semicolon_insertion ?} ;
+
+(* ============================================================
+   11. VERSION HISTORY — LEXICAL ADDITIONS BY GO VERSION
+
+   This section is non-normative. It summarizes the lexical
+   changes across Go versions to support grammar diffing.
+
+   Go 1.0 – 1.12: Base lexical grammar. Integer literals
+       support decimal, octal (0-prefix), and hexadecimal
+       (0x prefix). No digit separators.
+
+   Go 1.13: (Spec update, Feb 2020)
+       - Binary integer literals (0b, 0B prefix)
+       - Octal integer literals with explicit prefix (0o, 0O)
+       - Hexadecimal floating-point literals
+       - Digit separators (underscore _) in numeric literals
+       Source: https://go.dev/doc/go1.13#language
+
+   Go 1.14 – 1.17: No lexical changes.
+       (1.14: testing.T.Cleanup, 1.15: time zone embedding,
+        1.16: //go:embed, 1.17: conversion of slice to array ptr)
+
+   Go 1.18: (Mar 2022)
+       - Tilde (~) operator for type constraints in generics
+       Source: https://go.dev/doc/go1.18#language
+
+   Go 1.19: No lexical changes.
+       (Revised memory model)
+
+   Go 1.20: No lexical changes.
+       (Comparable constraint change, slice to array conversion)
+
+   Go 1.21: No lexical changes.
+       (min, max, clear builtins — these are predeclared
+        identifiers, not lexical additions)
+
+   Go 1.22: No lexical changes.
+       (Range over integers, range-over-func experiment —
+        these are syntactic changes)
+   ============================================================ *)

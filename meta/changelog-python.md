@@ -1,30 +1,32 @@
 # Python Grammar Changelog
 
-This changelog tracks notable changes to the Python grammar across recent versions.
+## XEBNF Migration (2026-02-07)
 
----
+The Python grammar has been migrated from per-version EBNF stubs to comprehensive XEBNF files covering Python 3.0 through 3.13.
 
-## Python 3.12 → 3.13
+- **lexical.xebnf** — 658 lines, 12 sections, ~100 productions
+- **syntax.xebnf** — 984 lines, 7 sections, ~150 productions
+- **Version annotations** tracking feature introductions across Python versions (3.5 async/await, 3.6 f-strings, 3.8 walrus operator, 3.10 match/case, 3.12 type params)
+- Conformance Level 1 (Partial) with documented gaps
 
-- Added support for:
-  - `except*` syntax for `try` statements (PEP 654)
-  - Refinements in pattern matching grammar (PEP 634+)
-  - Nested expressions in `f-strings`
-  - Type parameter declarations in function/class headers (PEP 695)
-- Clarified parsing rules around `match` statements and `case` blocks
-- Extended function call parsing for partial application
+### Previous state
 
----
+- `lexical.ebnf` (22 lines) — structural placeholder
+- `syntax.ebnf` (34 lines) — structural placeholder
 
-## Python 3.11 → 3.12
+These have been removed. Their content is fully subsumed by the XEBNF grammar's `@[since:]` annotations.
 
-- Allowed annotations and types in more flexible contexts
-- Introduced `soft keywords` (e.g., `match`, `case`)
-- Introduced syntax for exception groups (PEP 654 foundation)
-- Added explicit suite constructs for indented blocks
+## Version History (by Python version)
 
----
+The grammar's non-normative Section 12 (in lexical.xebnf) and Section 7 (in syntax.xebnf) contain version-by-version changelogs. Rather than duplicate that here, refer to those sections directly:
 
-Each version’s grammar is stored under:
-- `grammars/python/v3.12/`
-- `grammars/python/v3.13/`
+```bash
+# View syntactic version history
+grep -A 60 'VERSION HISTORY' grammars/python/syntax.xebnf
+
+# View lexical version history
+grep -A 60 'VERSION HISTORY' grammars/python/lexical.xebnf
+
+# Find all features added in a specific version
+grep 'since: "3.10"' grammars/python/lexical.xebnf grammars/python/syntax.xebnf
+```

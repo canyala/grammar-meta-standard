@@ -1,0 +1,870 @@
+(* ============================================================
+   Go 1.22 Syntactic Grammar
+   XEBNF Specification
+
+   Source: The Go Programming Language Specification
+     https://go.dev/ref/spec
+   Cross-referenced with:
+     - Go release notes (1.13 through 1.22)
+     - golang/go repository (src/go/parser)
+
+   Companion to: lexical.xebnf
+
+   Conformance: Level 1 (Partial)
+   Known gaps documented inline.
+   ============================================================ *)
+
+@grammar {
+    name: "Go" ;
+    version: "1.22" ;
+    family: "go" ;
+    spec: "The Go Programming Language Specification" ;
+    uri: "https://go.dev/ref/spec" ;
+    conformance: 1 ;
+    conformance_notes: "Syntactic grammar covers types, expressions, statements,
+        and declarations through Go 1.22. Operator precedence is encoded
+        via production hierarchy. Composite literal ambiguity with blocks
+        is a known context-sensitive construct. Generic type instantiation
+        vs. comparison operator ambiguity is annotated." ;
+}
+
+@imports {
+    lexical: "./lexical.xebnf" ;
+}
+
+@predicates {
+    in_composite_literal: "Currently parsing inside a composite literal value" ;
+    semicolon_insertion: "Automatic semicolon insertion applies" ;
+}
+
+(* ============================================================
+   1. SOURCE FILE
+   Source: Go spec — Source file organization
+   ============================================================ *)
+
+@[since: "1.0"]
+source_file
+    = package_clause ';'
+      import_decl_list
+      top_level_decl_list
+    ;
+
+@[since: "1.0"]
+import_decl_list = ( import_decl ';' )* ;
+
+@[since: "1.0"]
+top_level_decl_list = ( top_level_decl ';' )* ;
+
+(* ============================================================
+   2. PACKAGE CLAUSE
+   Source: Go spec — Package clause
+   ============================================================ *)
+
+@[since: "1.0"]
+package_clause = "package" IDENTIFIER ;
+
+(* ============================================================
+   3. IMPORT DECLARATIONS
+   Source: Go spec — Import declarations
+   ============================================================ *)
+
+@[since: "1.0"]
+import_decl
+    = "import" import_spec
+    | "import" '(' ( import_spec ';' )* ')'
+    ;
+
+@[since: "1.0"]
+import_spec
+    = [ '.' | IDENTIFIER ] import_path ;
+
+@[since: "1.0"]
+import_path = STRING_LITERAL ;
+
+(* ============================================================
+   4. TOP-LEVEL DECLARATIONS
+   Source: Go spec — Declarations and scope
+   ============================================================ *)
+
+@[since: "1.0"]
+top_level_decl
+    = declaration
+    | function_decl
+    | method_decl
+    ;
+
+@[since: "1.0"]
+declaration
+    = const_decl
+    | type_decl
+    | var_decl
+    ;
+
+(* ------------------------------------------------------------
+   4.1 Constant declarations
+   Source: Go spec — Constant declarations
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+const_decl
+    = "const" const_spec
+    | "const" '(' ( const_spec ';' )* ')'
+    ;
+
+@[since: "1.0"]
+const_spec
+    = identifier_list [ [ type ] '=' expression_list ]
+    ;
+
+(* ------------------------------------------------------------
+   4.2 Type declarations
+   Source: Go spec — Type declarations
+
+   Go 1.18 added type parameter declarations for generics.
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+type_decl
+    = "type" type_spec
+    | "type" '(' ( type_spec ';' )* ')'
+    ;
+
+@[since: "1.0"]
+type_spec
+    = alias_decl
+    | type_def
+    ;
+
+@[since: "1.0"]
+alias_decl = IDENTIFIER '=' type ;
+
+@[since: "1.0"]
+type_def = IDENTIFIER @[since: "1.18"] type_parameters? type ;
+
+(* ------------------------------------------------------------
+   4.3 Variable declarations
+   Source: Go spec — Variable declarations
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+var_decl
+    = "var" var_spec
+    | "var" '(' ( var_spec ';' )* ')'
+    ;
+
+@[since: "1.0"]
+var_spec
+    = identifier_list ( type [ '=' expression_list ] | '=' expression_list )
+    ;
+
+(* ============================================================
+   5. TYPES
+   Source: Go spec — Types
+   ============================================================ *)
+
+@[since: "1.0"]
+type
+    = type_name @[since: "1.18"] type_args?
+    | type_lit
+    | '(' type ')'
+    ;
+
+@[since: "1.0"]
+type_name
+    = IDENTIFIER
+    | qualified_ident
+    ;
+
+@[since: "1.0"]
+type_lit
+    = array_type
+    | struct_type
+    | pointer_type
+    | function_type
+    | interface_type
+    | slice_type
+    | map_type
+    | channel_type
+    ;
+
+(* ------------------------------------------------------------
+   5.1 Array types
+   Source: Go spec — Array types
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+array_type = '[' array_length ']' element_type ;
+
+@[since: "1.0"]
+array_length = expression ;
+
+@[since: "1.0"]
+element_type = type ;
+
+(* ------------------------------------------------------------
+   5.2 Slice types
+   Source: Go spec — Slice types
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+slice_type = '[' ']' element_type ;
+
+(* ------------------------------------------------------------
+   5.3 Struct types
+   Source: Go spec — Struct types
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+struct_type = "struct" '{' ( field_decl ';' )* '}' ;
+
+@[since: "1.0"]
+field_decl
+    = ( identifier_list type | embedded_field ) tag?
+    ;
+
+@[since: "1.0"]
+embedded_field = '*'? type_name @[since: "1.18"] type_args? ;
+
+@[since: "1.0"]
+tag = STRING_LITERAL ;
+
+(* ------------------------------------------------------------
+   5.4 Pointer types
+   Source: Go spec — Pointer types
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+pointer_type = '*' base_type ;
+
+@[since: "1.0"]
+base_type = type ;
+
+(* ------------------------------------------------------------
+   5.5 Function types
+   Source: Go spec — Function types
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+function_type = "func" signature ;
+
+@[since: "1.0"]
+signature = parameters result? ;
+
+@[since: "1.0"]
+result
+    = parameters
+    | type
+    ;
+
+@[since: "1.0"]
+parameters = '(' [ parameter_list [ ',' ] ] ')' ;
+
+@[since: "1.0"]
+parameter_list
+    = parameter_decl ( ',' parameter_decl )* ;
+
+@[since: "1.0"]
+parameter_decl
+    = [ identifier_list ] "..."? type ;
+
+(* ------------------------------------------------------------
+   5.6 Interface types
+   Source: Go spec — Interface types
+
+   Go 1.18 added type elements (union, ~T) to interfaces
+   for use as type constraints.
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+interface_type = "interface" '{' ( interface_elem ';' )* '}' ;
+
+@[since: "1.0"]
+interface_elem
+    = method_elem
+    | @[since: "1.18"] type_elem
+    ;
+
+@[since: "1.0"]
+method_elem = IDENTIFIER signature ;
+
+@[since: "1.18",
+  description: "Type elements in interfaces — for generic type constraints"]
+type_elem = type_term ( '|' type_term )* ;
+
+@[since: "1.18"]
+type_term
+    = type
+    | '~' type     (* underlying type constraint *)
+    ;
+
+(* ------------------------------------------------------------
+   5.7 Map types
+   Source: Go spec — Map types
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+map_type = "map" '[' key_type ']' element_type ;
+
+@[since: "1.0"]
+key_type = type ;
+
+(* ------------------------------------------------------------
+   5.8 Channel types
+   Source: Go spec — Channel types
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+channel_type
+    = "chan" element_type                (* bidirectional *)
+    | "chan" "<-" element_type           (* send-only *)
+    | "<-" "chan" element_type           (* receive-only *)
+    ;
+
+(* ============================================================
+   6. TYPE PARAMETERS AND ARGUMENTS (Go 1.18+)
+   Source: Go spec — Type parameter declarations
+   ============================================================ *)
+
+@[since: "1.18"]
+type_parameters = '[' type_param_list [ ',' ] ']' ;
+
+@[since: "1.18"]
+type_param_list = type_param_decl ( ',' type_param_decl )* ;
+
+@[since: "1.18"]
+type_param_decl = identifier_list type_constraint ;
+
+@[since: "1.18"]
+type_constraint = type_elem ;
+
+@[since: "1.18"]
+type_args = '[' type_list [ ',' ] ']' ;
+
+@[since: "1.18"]
+type_list = type ( ',' type )* ;
+
+(* ============================================================
+   7. EXPRESSIONS
+   Source: Go spec — Expressions
+   ============================================================ *)
+
+(* ------------------------------------------------------------
+   7.1 Operands
+   Source: Go spec — Operands
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+operand
+    = literal
+    | operand_name @[since: "1.18"] type_args?
+    | '(' expression ')'
+    ;
+
+@[since: "1.0"]
+operand_name
+    = IDENTIFIER
+    | qualified_ident
+    ;
+
+@[since: "1.0"]
+qualified_ident = IDENTIFIER '.' IDENTIFIER ;
+
+(* ------------------------------------------------------------
+   7.2 Composite literals
+   Source: Go spec — Composite literals
+
+   Note: Composite literal ambiguity with blocks.
+   In statement context, a composite literal used as the
+   operand of an if, for, or switch must be enclosed in
+   parentheses to avoid ambiguity with the block opening brace.
+   This is context-sensitive.
+   ------------------------------------------------------------ *)
+
+@[since: "1.0",
+  description: "Composite literals are ambiguous with blocks in certain
+    statement contexts (if, for, switch conditions). The parser must
+    use context to disambiguate."]
+composite_lit = literal_type literal_value ;
+
+@[since: "1.0"]
+literal_type
+    = struct_type
+    | array_type
+    | '[' "..." ']' element_type
+    | slice_type
+    | map_type
+    | type_name @[since: "1.18"] type_args?
+    ;
+
+@[since: "1.0"]
+literal_value = '{' [ element_list [ ',' ] ] '}' ;
+
+@[since: "1.0"]
+element_list = keyed_element ( ',' keyed_element )* ;
+
+@[since: "1.0"]
+keyed_element = [ key ':' ] element ;
+
+@[since: "1.0"]
+key
+    = IDENTIFIER
+    | expression
+    | literal_value
+    ;
+
+@[since: "1.0"]
+element
+    = expression
+    | literal_value
+    ;
+
+(* ------------------------------------------------------------
+   7.3 Function literals
+   Source: Go spec — Function literals
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+function_lit = "func" signature function_body ;
+
+(* ------------------------------------------------------------
+   7.4 Primary expressions
+   Source: Go spec — Primary expressions
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+primary_expression
+    = operand
+    | conversion
+    | method_expression
+    | primary_expression selector
+    | primary_expression index
+    | primary_expression slice
+    | primary_expression type_assertion
+    | primary_expression arguments
+    ;
+
+@[since: "1.0"]
+selector = '.' IDENTIFIER ;
+
+@[since: "1.0"]
+index = '[' expression ']' ;
+
+@[since: "1.0"]
+slice
+    = '[' expression? ':' expression? ']'
+    | '[' expression? ':' expression ':' expression ']'
+    ;
+
+@[since: "1.0"]
+type_assertion = '.' '(' type ')' ;
+
+@[since: "1.0"]
+arguments
+    = '(' [ ( expression_list | type ',' expression_list ) "..."? [ ',' ] ] ')'
+    ;
+
+(* ------------------------------------------------------------
+   7.5 Method expressions
+   Source: Go spec — Method expressions
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+method_expression = type '.' IDENTIFIER ;
+
+(* ------------------------------------------------------------
+   7.6 Conversions
+   Source: Go spec — Conversions
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+conversion = type '(' expression [ ',' ] ')' ;
+
+(* ------------------------------------------------------------
+   7.7 Operators — Precedence hierarchy
+   Source: Go spec — Operator precedence
+
+   Go has 5 binary operator precedence levels:
+     5: *  /  %  <<  >>  &  &^
+     4: +  -  |  ^
+     3: ==  !=  <  <=  >  >=
+     2: &&
+     1: ||
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+expression = unary_expression | expression binary_op expression ;
+
+@[since: "1.0"]
+binary_op
+    = "||"
+    | "&&"
+    | rel_op
+    | add_op
+    | mul_op
+    ;
+
+@[since: "1.0"]
+rel_op = "==" | "!=" | '<' | "<=" | '>' | ">=" ;
+
+@[since: "1.0"]
+add_op = '+' | '-' | '|' | '^' ;
+
+@[since: "1.0"]
+mul_op = '*' | '/' | '%' | "<<" | ">>" | '&' | "&^" ;
+
+@[since: "1.0"]
+unary_expression
+    = primary_expression
+    | unary_op unary_expression
+    ;
+
+@[since: "1.0"]
+unary_op = '+' | '-' | '!' | '^' | '*' | '&' | "<-" ;
+
+(* ============================================================
+   8. STATEMENTS
+   Source: Go spec — Statements
+   ============================================================ *)
+
+@[since: "1.0"]
+statement
+    = declaration
+    | labeled_statement
+    | simple_statement
+    | go_statement
+    | return_statement
+    | break_statement
+    | continue_statement
+    | goto_statement
+    | fallthrough_statement
+    | block
+    | if_statement
+    | switch_statement
+    | select_statement
+    | for_statement
+    | defer_statement
+    ;
+
+@[since: "1.0"]
+simple_statement
+    = empty_statement
+    | expression_statement
+    | send_statement
+    | inc_dec_statement
+    | assignment
+    | short_var_decl
+    ;
+
+(* ------------------------------------------------------------
+   8.1 Empty statement
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+empty_statement = (* empty *) ;
+
+(* ------------------------------------------------------------
+   8.2 Labeled statement
+   Source: Go spec — Labeled statements
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+labeled_statement = IDENTIFIER ':' statement ;
+
+(* ------------------------------------------------------------
+   8.3 Expression statement
+   Source: Go spec — Expression statements
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+expression_statement = expression ;
+
+(* ------------------------------------------------------------
+   8.4 Send statement
+   Source: Go spec — Send statements
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+send_statement = expression "<-" expression ;
+
+(* ------------------------------------------------------------
+   8.5 Increment/decrement statements
+   Source: Go spec — IncDec statements
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+inc_dec_statement = expression ( "++" | "--" ) ;
+
+(* ------------------------------------------------------------
+   8.6 Assignment
+   Source: Go spec — Assignment statements
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+assignment = expression_list assign_op expression_list ;
+
+@[since: "1.0"]
+assign_op
+    = [ add_op | mul_op ] '='
+    ;
+
+(* ------------------------------------------------------------
+   8.7 Short variable declaration
+   Source: Go spec — Short variable declarations
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+short_var_decl = identifier_list ":=" expression_list ;
+
+(* ------------------------------------------------------------
+   8.8 Go statement
+   Source: Go spec — Go statements
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+go_statement = "go" expression ;
+
+(* ------------------------------------------------------------
+   8.9 Return statement
+   Source: Go spec — Return statements
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+return_statement = "return" expression_list? ;
+
+(* ------------------------------------------------------------
+   8.10 Break statement
+   Source: Go spec — Break statements
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+break_statement = "break" IDENTIFIER? ;
+
+(* ------------------------------------------------------------
+   8.11 Continue statement
+   Source: Go spec — Continue statements
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+continue_statement = "continue" IDENTIFIER? ;
+
+(* ------------------------------------------------------------
+   8.12 Goto statement
+   Source: Go spec — Goto statements
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+goto_statement = "goto" IDENTIFIER ;
+
+(* ------------------------------------------------------------
+   8.13 Fallthrough statement
+   Source: Go spec — Fallthrough statements
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+fallthrough_statement = "fallthrough" ;
+
+(* ------------------------------------------------------------
+   8.14 Defer statement
+   Source: Go spec — Defer statements
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+defer_statement = "defer" expression ;
+
+(* ------------------------------------------------------------
+   8.15 Block
+   Source: Go spec — Blocks
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+block = '{' statement_list '}' ;
+
+@[since: "1.0"]
+statement_list = ( statement ';' )* ;
+
+(* ------------------------------------------------------------
+   8.16 If statement
+   Source: Go spec — If statements
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+if_statement
+    = "if" [ simple_statement ';' ] expression block
+      [ "else" ( if_statement | block ) ]
+    ;
+
+(* ------------------------------------------------------------
+   8.17 Switch statements
+   Source: Go spec — Switch statements
+
+   Go has expression switches and type switches.
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+switch_statement
+    = expr_switch_statement
+    | type_switch_statement
+    ;
+
+(* --- Expression switch --- *)
+
+@[since: "1.0"]
+expr_switch_statement
+    = "switch" [ simple_statement ';' ] expression?
+      '{' expr_case_clause* '}'
+    ;
+
+@[since: "1.0"]
+expr_case_clause = expr_switch_case ':' statement_list ;
+
+@[since: "1.0"]
+expr_switch_case
+    = "case" expression_list
+    | "default"
+    ;
+
+(* --- Type switch --- *)
+
+@[since: "1.0"]
+type_switch_statement
+    = "switch" [ simple_statement ';' ] type_switch_guard
+      '{' type_case_clause* '}'
+    ;
+
+@[since: "1.0"]
+type_switch_guard = [ IDENTIFIER ":=" ] primary_expression '.' '(' "type" ')' ;
+
+@[since: "1.0"]
+type_case_clause = type_switch_case ':' statement_list ;
+
+@[since: "1.0"]
+type_switch_case
+    = "case" type_list
+    | "default"
+    ;
+
+(* ------------------------------------------------------------
+   8.18 For statements
+   Source: Go spec — For statements
+
+   Go 1.22 added range over integers.
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+for_statement
+    = "for" [ for_clause | range_clause | expression ] block
+    ;
+
+@[since: "1.0"]
+for_clause
+    = [ simple_statement ] ';' [ expression ] ';' [ simple_statement ]
+    ;
+
+@[since: "1.0",
+  description: "Range clause. Go 1.22 extends range to work over integers
+    and (experimentally) over functions yielding values."]
+range_clause
+    = [ expression_list '=' | identifier_list ":=" ] "range" expression
+    ;
+
+(* ------------------------------------------------------------
+   8.19 Select statement
+   Source: Go spec — Select statements
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+select_statement = "select" '{' comm_clause* '}' ;
+
+@[since: "1.0"]
+comm_clause = comm_case ':' statement_list ;
+
+@[since: "1.0"]
+comm_case
+    = "case" ( send_statement | recv_statement )
+    | "default"
+    ;
+
+@[since: "1.0"]
+recv_statement
+    = [ expression_list '=' | identifier_list ":=" ] expression ;
+
+(* ============================================================
+   9. FUNCTION AND METHOD DECLARATIONS
+   Source: Go spec — Function declarations, Method declarations
+   ============================================================ *)
+
+@[since: "1.0"]
+function_decl
+    = "func" IDENTIFIER @[since: "1.18"] type_parameters? signature function_body?
+    ;
+
+@[since: "1.0"]
+function_body = block ;
+
+@[since: "1.0"]
+method_decl = "func" receiver IDENTIFIER signature function_body? ;
+
+@[since: "1.0"]
+receiver = parameters ;
+    (* The receiver parameter list must contain exactly one
+       non-variadic parameter, the receiver. *)
+
+(* ============================================================
+   10. COMMON PRODUCTIONS
+   Source: Go spec — various
+   ============================================================ *)
+
+@[since: "1.0"]
+identifier_list = IDENTIFIER ( ',' IDENTIFIER )* ;
+
+@[since: "1.0"]
+expression_list = expression ( ',' expression )* ;
+
+(* ============================================================
+   11. VERSION HISTORY — SYNTACTIC ADDITIONS BY GO VERSION
+
+   This section is non-normative. It summarizes the syntactic
+   changes across Go versions to support grammar diffing.
+
+   Go 1.0 – 1.12: Base syntactic grammar as specified in
+       the Go Language Specification. Includes all core types
+       (struct, interface, channel, map, slice, array, pointer,
+       function), expressions with 5-level precedence, all
+       statement forms (if, for, switch, select, go, defer,
+       return, break, continue, goto, fallthrough), function
+       and method declarations, and package/import system.
+
+   Go 1.13: No syntactic changes.
+       (Numeric literal syntax changes are lexical only.)
+
+   Go 1.14: No syntactic changes.
+
+   Go 1.15: No syntactic changes.
+
+   Go 1.16: No syntactic changes.
+       (//go:embed is a compiler directive, not grammar)
+
+   Go 1.17: No syntactic changes.
+       (Conversion of slice to array pointer — type system)
+
+   Go 1.18: (Mar 2022) — MAJOR: Generics
+       - Type parameter declarations on types and functions
+       - Type arguments in type instantiation
+       - Type elements in interfaces (union types, ~T)
+       - Type constraint syntax
+       - Tilde operator for underlying type constraints
+       Source: https://go.dev/doc/go1.18#language
+
+   Go 1.19: No syntactic changes.
+
+   Go 1.20: No syntactic changes.
+       (Comparable type constraint relaxation — type system)
+
+   Go 1.21: No syntactic changes.
+       (min, max, clear builtins — predeclared, not syntactic)
+
+   Go 1.22: (Feb 2024)
+       - Range over integers: for i := range N { ... }
+       - Range-over-func experiment (GOEXPERIMENT=rangefunc)
+       Source: https://go.dev/doc/go1.22#language
+   ============================================================ *)

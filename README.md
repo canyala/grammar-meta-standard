@@ -21,10 +21,10 @@ Machine-readable, versioned formal grammars for:
 | Language | Format | Versions | Conformance | Lines |
 |----------|--------|----------|-------------|-------|
 | **C#** | XEBNF | 1.0 – 14.0 | Level 1 | 3,215 |
-| Python | EBNF | 3.13 | Level 0 | 54 |
-| JavaScript | EBNF | ES2024 | Level 0 | 105 |
-| Java | EBNF | 21 | Level 0 | 53 |
-| Go | EBNF | 1.22 | Level 0 | 49 |
+| **Go** | XEBNF | 1.13 – 1.22 | Level 1 | 1,376 |
+| **Python** | XEBNF | 3.6 – 3.13 | Level 1 | 1,642 |
+| **Java** | XEBNF | 5 – 21 | Level 1 | 1,884 |
+| **JavaScript** | XEBNF | ES2015 – ES2024 | Level 1 | 1,767 |
 | Turtle | EBNF | 1.1 | Level 0 | 55 |
 | SPARQL | EBNF | 1.1 | Level 1 | 244 |
 
@@ -76,7 +76,7 @@ We welcome contributions to expand and refine existing grammars, and to add supp
 
 Priority opportunities:
 
-- **XEBNF migration** of existing EBNF grammars (Python, JavaScript, SPARQL)
+- **XEBNF migration** of remaining EBNF grammars (SPARQL, Turtle)
 - **New languages**: Rust, F#, Haskell, SQL, C/C++
 - **Tooling**: version extraction, grammar validation, conformance testing
 

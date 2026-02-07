@@ -1,0 +1,1152 @@
+(* ============================================================
+   JavaScript (ECMAScript) ES2024 Syntactic Grammar
+   XEBNF Specification
+
+   Source: ECMA-262, 15th Edition (ES2024)
+     https://tc39.es/ecma262/
+     Annex A — Grammar Summary (syntactic grammar)
+   Cross-referenced with:
+     - TC39 proposal documents (ES2015 through ES2024)
+     - MDN JavaScript reference
+
+   Companion to: lexical.xebnf
+
+   Conformance: Level 1 (Partial)
+   Known gaps documented inline.
+   ============================================================ *)
+
+@grammar {
+    name: "JavaScript" ;
+    version: "ES2024" ;
+    family: "ecmascript" ;
+    spec: "ECMA-262, 15th Edition" ;
+    uri: "https://tc39.es/ecma262/" ;
+    conformance: 1 ;
+    conformance_notes: "Syntactic grammar covers expressions, statements,
+        declarations, classes, modules, and async/await through ES2024.
+        Operator precedence is encoded via production hierarchy.
+        The ECMA-262 grammar is parameterized (In, Yield, Await,
+        Default, Return) — these parameters are documented via
+        annotations and predicates but not fully expanded.
+        Cover grammars for arrow functions and destructuring
+        are annotated as context-sensitive." ;
+}
+
+@imports {
+    lexical: "./lexical.xebnf" ;
+}
+
+@predicates {
+    in_generator: "Currently within a generator function (yield valid)" ;
+    in_async: "Currently within an async function (await valid)" ;
+    in_module: "Source is parsed as a module (import/export valid, strict mode)" ;
+    in_strict: "Current code is in strict mode" ;
+    in_iteration: "Currently within a loop (break/continue valid)" ;
+    in_switch: "Currently within a switch statement (break valid)" ;
+}
+
+(* ============================================================
+   1. SCRIPTS AND MODULES
+   Source: ECMA-262 §16
+   ============================================================ *)
+
+@[since: "ES2015"]
+script = script_body? ;
+
+@[since: "ES2015"]
+script_body = statement_list ;
+
+@[since: "ES2015"]
+module = module_body? ;
+
+@[since: "ES2015"]
+module_body = module_item_list ;
+
+@[since: "ES2015"]
+module_item_list = module_item+ ;
+
+@[since: "ES2015"]
+module_item
+    = import_declaration
+    | export_declaration
+    | statement_list_item
+    ;
+
+(* ============================================================
+   2. IMPORT AND EXPORT DECLARATIONS
+   Source: ECMA-262 §16.2
+   ============================================================ *)
+
+(* ------------------------------------------------------------
+   2.1 Import declarations
+   Source: ECMA-262 §16.2.2
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+import_declaration
+    = "import" import_clause from_clause ';'
+    | "import" module_specifier ';'
+    ;
+
+@[since: "ES2015"]
+import_clause
+    = imported_default_binding
+    | name_space_import
+    | named_imports
+    | imported_default_binding ',' name_space_import
+    | imported_default_binding ',' named_imports
+    ;
+
+@[since: "ES2015"]
+imported_default_binding = imported_binding ;
+
+@[since: "ES2015"]
+name_space_import = '*' "as" imported_binding ;
+
+@[since: "ES2015"]
+named_imports = '{' [ import_specifier_list [ ',' ] ] '}' ;
+
+@[since: "ES2015"]
+import_specifier_list = import_specifier ( ',' import_specifier )* ;
+
+@[since: "ES2015"]
+import_specifier
+    = imported_binding
+    | IDENTIFIER_NAME "as" imported_binding
+    | @[since: "ES2022"] STRING_LITERAL "as" imported_binding
+    ;
+
+@[since: "ES2015"]
+imported_binding = binding_identifier ;
+
+@[since: "ES2015"]
+from_clause = "from" module_specifier ;
+
+@[since: "ES2015"]
+module_specifier = STRING_LITERAL ;
+
+(* --- Dynamic import (ES2020) --- *)
+
+@[since: "ES2020",
+  description: "Dynamic import — import() as expression. TC39 proposal."]
+import_call = "import" '(' assignment_expression ')' ;
+
+(* --- import.meta (ES2020) --- *)
+
+@[since: "ES2020",
+  description: "import.meta — module metadata object. TC39 proposal."]
+import_meta = "import" '.' "meta" ;
+
+(* ------------------------------------------------------------
+   2.2 Export declarations
+   Source: ECMA-262 §16.2.3
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+export_declaration
+    = "export" '*' from_clause ';'
+    | @[since: "ES2020"] "export" '*' "as" IDENTIFIER_NAME from_clause ';'
+    | "export" export_clause from_clause ';'
+    | "export" export_clause ';'
+    | "export" variable_statement
+    | "export" declaration
+    | "export" "default" hoistable_declaration
+    | "export" "default" class_declaration
+    | "export" "default" assignment_expression ';'
+    ;
+
+@[since: "ES2015"]
+export_clause = '{' [ export_specifier_list [ ',' ] ] '}' ;
+
+@[since: "ES2015"]
+export_specifier_list = export_specifier ( ',' export_specifier )* ;
+
+@[since: "ES2015"]
+export_specifier
+    = IDENTIFIER_NAME
+    | IDENTIFIER_NAME "as" IDENTIFIER_NAME
+    | @[since: "ES2022"] STRING_LITERAL "as" IDENTIFIER_NAME
+    ;
+
+(* ============================================================
+   3. STATEMENTS
+   Source: ECMA-262 §14
+   ============================================================ *)
+
+@[since: "ES2015"]
+statement_list = statement_list_item+ ;
+
+@[since: "ES2015"]
+statement_list_item
+    = statement
+    | declaration
+    ;
+
+@[since: "ES2015"]
+statement
+    = block_statement
+    | variable_statement
+    | empty_statement
+    | expression_statement
+    | if_statement
+    | breakable_statement
+    | continue_statement
+    | break_statement
+    | return_statement
+    | with_statement
+    | labelled_statement
+    | throw_statement
+    | try_statement
+    | debugger_statement
+    ;
+
+@[since: "ES2015"]
+declaration
+    = hoistable_declaration
+    | class_declaration
+    | lexical_declaration
+    ;
+
+@[since: "ES2015"]
+hoistable_declaration
+    = function_declaration
+    | generator_declaration
+    | @[since: "ES2017"] async_function_declaration
+    | @[since: "ES2018"] async_generator_declaration
+    ;
+
+(* ------------------------------------------------------------
+   3.1 Block statement
+   Source: ECMA-262 §14.2
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+block_statement = block ;
+
+@[since: "ES2015"]
+block = '{' statement_list? '}' ;
+
+(* ------------------------------------------------------------
+   3.2 Variable statement
+   Source: ECMA-262 §14.3.2
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+variable_statement = "var" variable_declaration_list ';' ;
+
+@[since: "ES2015"]
+variable_declaration_list
+    = variable_declaration ( ',' variable_declaration )* ;
+
+@[since: "ES2015"]
+variable_declaration
+    = binding_identifier initializer?
+    | binding_pattern initializer
+    ;
+
+(* ------------------------------------------------------------
+   3.3 Lexical declarations (let, const)
+   Source: ECMA-262 §14.3.1
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+lexical_declaration = let_or_const binding_list ';' ;
+
+@[since: "ES2015"]
+let_or_const = "let" | "const" ;
+
+@[since: "ES2015"]
+binding_list = lexical_binding ( ',' lexical_binding )* ;
+
+@[since: "ES2015"]
+lexical_binding
+    = binding_identifier initializer?
+    | binding_pattern initializer
+    ;
+
+(* ------------------------------------------------------------
+   3.4 Destructuring binding patterns
+   Source: ECMA-262 §14.3.3
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+binding_pattern
+    = object_binding_pattern
+    | array_binding_pattern
+    ;
+
+@[since: "ES2015"]
+object_binding_pattern
+    = '{' '}'
+    | '{' binding_rest_property '}'
+    | '{' binding_property_list [ ',' [ binding_rest_property ] ] '}'
+    ;
+
+@[since: "ES2015"]
+array_binding_pattern
+    = '[' [ elision ] binding_rest_element? ']'
+    | '[' binding_element_list ']'
+    | '[' binding_element_list ',' [ elision ] binding_rest_element? ']'
+    ;
+
+@[since: "ES2015"]
+binding_property_list = binding_property ( ',' binding_property )* ;
+
+@[since: "ES2015"]
+binding_property
+    = single_name_binding
+    | property_name ':' binding_element
+    ;
+
+@[since: "ES2015"]
+binding_element = single_name_binding | binding_pattern initializer? ;
+
+@[since: "ES2015"]
+single_name_binding = binding_identifier initializer? ;
+
+@[since: "ES2015"]
+binding_rest_element = "..." binding_identifier | "..." binding_pattern ;
+
+@[since: "ES2018"]
+binding_rest_property = "..." binding_identifier ;
+
+@[since: "ES2015"]
+binding_element_list = binding_elision_element ( ',' binding_elision_element )* ;
+
+@[since: "ES2015"]
+binding_elision_element = elision? binding_element ;
+
+@[since: "ES2015"]
+elision = ','+ ;
+
+(* ------------------------------------------------------------
+   3.5 Empty statement
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+empty_statement = ';' ;
+
+(* ------------------------------------------------------------
+   3.6 Expression statement
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015",
+  description: "Expression statement. Cannot start with {, function,
+    async function, class, or let [ — these are covered by other
+    statement productions."]
+expression_statement
+    = (?! '{' | "function" | "async" "function" | "class" | "let" '[' )
+      expression ';'
+    ;
+
+(* ------------------------------------------------------------
+   3.7 If statement
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+if_statement
+    = "if" '(' expression ')' statement [ "else" statement ]
+    ;
+
+(* ------------------------------------------------------------
+   3.8 Iteration statements
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+breakable_statement
+    = iteration_statement
+    | switch_statement
+    ;
+
+@[since: "ES2015"]
+iteration_statement
+    = do_while_statement
+    | while_statement
+    | for_statement
+    | @[since: "ES2015"] for_in_of_statement
+    ;
+
+@[since: "ES2015"]
+do_while_statement = "do" statement "while" '(' expression ')' ';' ;
+
+@[since: "ES2015"]
+while_statement = "while" '(' expression ')' statement ;
+
+@[since: "ES2015"]
+for_statement
+    = "for" '(' [ expression | "var" variable_declaration_list | lexical_declaration ] ';'
+      expression? ';' expression? ')' statement
+    ;
+
+@[since: "ES2015",
+  description: "for-in and for-of statements. for-of added in ES2015.
+    for-await-of added in ES2018 for async iterables."]
+for_in_of_statement
+    = "for" '(' for_declaration "in" expression ')' statement
+    | "for" '(' left_hand_side_expression "in" expression ')' statement
+    | "for" @[since: "ES2018"] [ "await" ] '(' for_declaration "of" assignment_expression ')' statement
+    | "for" @[since: "ES2018"] [ "await" ] '(' left_hand_side_expression "of" assignment_expression ')' statement
+    ;
+
+@[since: "ES2015"]
+for_declaration = let_or_const for_binding ;
+
+@[since: "ES2015"]
+for_binding = binding_identifier | binding_pattern ;
+
+(* ------------------------------------------------------------
+   3.9 Continue, Break, Return, Throw
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015",
+  description: "Continue statement. [no LineTerminator here] before label."]
+continue_statement = "continue" [ (* no LT *) IDENTIFIER_NAME ] ';' ;
+
+@[since: "ES2015",
+  description: "Break statement. [no LineTerminator here] before label."]
+break_statement = "break" [ (* no LT *) IDENTIFIER_NAME ] ';' ;
+
+@[since: "ES2015",
+  description: "Return statement. [no LineTerminator here] before expression."]
+return_statement = "return" [ (* no LT *) expression ] ';' ;
+
+@[since: "ES2015",
+  description: "Throw statement. [no LineTerminator here] before expression."]
+throw_statement = "throw" (* no LT *) expression ';' ;
+
+(* ------------------------------------------------------------
+   3.10 With statement
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015",
+  description: "With statement — forbidden in strict mode"]
+with_statement = "with" '(' expression ')' statement ;
+
+(* ------------------------------------------------------------
+   3.11 Switch statement
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+switch_statement = "switch" '(' expression ')' case_block ;
+
+@[since: "ES2015"]
+case_block
+    = '{' case_clauses? [ default_clause case_clauses? ] '}'
+    ;
+
+@[since: "ES2015"]
+case_clauses = case_clause+ ;
+
+@[since: "ES2015"]
+case_clause = "case" expression ':' statement_list? ;
+
+@[since: "ES2015"]
+default_clause = "default" ':' statement_list? ;
+
+(* ------------------------------------------------------------
+   3.12 Labelled statement
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+labelled_statement = IDENTIFIER_NAME ':' labelled_item ;
+
+@[since: "ES2015"]
+labelled_item = statement | function_declaration ;
+
+(* ------------------------------------------------------------
+   3.13 Try statement
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+try_statement
+    = "try" block catch_block
+    | "try" block finally_block
+    | "try" block catch_block finally_block
+    ;
+
+@[since: "ES2015"]
+catch_block
+    = "catch" [ '(' catch_parameter ')' ] block
+    ;
+    (* Optional catch binding since ES2019 *)
+
+@[since: "ES2015"]
+catch_parameter
+    = binding_identifier
+    | binding_pattern
+    ;
+
+@[since: "ES2015"]
+finally_block = "finally" block ;
+
+(* ------------------------------------------------------------
+   3.14 Debugger statement
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+debugger_statement = "debugger" ';' ;
+
+(* ============================================================
+   4. FUNCTION AND GENERATOR DECLARATIONS
+   Source: ECMA-262 §15
+   ============================================================ *)
+
+@[since: "ES2015"]
+function_declaration
+    = "function" binding_identifier '(' formal_parameters ')' '{' function_body '}'
+    | "function" '(' formal_parameters ')' '{' function_body '}'
+    ;
+
+@[since: "ES2015"]
+function_expression
+    = "function" binding_identifier? '(' formal_parameters ')' '{' function_body '}'
+    ;
+
+@[since: "ES2015"]
+formal_parameters
+    = (* empty *)
+    | function_rest_parameter
+    | formal_parameter_list [ ',' [ function_rest_parameter ] ]
+    ;
+
+@[since: "ES2015"]
+formal_parameter_list = formal_parameter ( ',' formal_parameter )* ;
+
+@[since: "ES2015"]
+formal_parameter = binding_element ;
+
+@[since: "ES2015"]
+function_rest_parameter = binding_rest_element ;
+
+@[since: "ES2015"]
+function_body = statement_list? ;
+
+(* --- Generators (ES2015) --- *)
+
+@[since: "ES2015"]
+generator_declaration
+    = "function" '*' binding_identifier '(' formal_parameters ')' '{' generator_body '}'
+    | "function" '*' '(' formal_parameters ')' '{' generator_body '}'
+    ;
+
+@[since: "ES2015"]
+generator_expression
+    = "function" '*' binding_identifier? '(' formal_parameters ')' '{' generator_body '}'
+    ;
+
+@[since: "ES2015"]
+generator_body = function_body ;
+
+(* --- Async functions (ES2017) --- *)
+
+@[since: "ES2017",
+  description: "Async function declarations — TC39 async/await proposal"]
+async_function_declaration
+    = "async" (* no LT *) "function" binding_identifier
+      '(' formal_parameters ')' '{' async_function_body '}'
+    | "async" (* no LT *) "function"
+      '(' formal_parameters ')' '{' async_function_body '}'
+    ;
+
+@[since: "ES2017"]
+async_function_expression
+    = "async" (* no LT *) "function" binding_identifier?
+      '(' formal_parameters ')' '{' async_function_body '}'
+    ;
+
+@[since: "ES2017"]
+async_function_body = function_body ;
+
+(* --- Async generators (ES2018) --- *)
+
+@[since: "ES2018",
+  description: "Async generator declarations"]
+async_generator_declaration
+    = "async" (* no LT *) "function" '*' binding_identifier
+      '(' formal_parameters ')' '{' async_generator_body '}'
+    | "async" (* no LT *) "function" '*'
+      '(' formal_parameters ')' '{' async_generator_body '}'
+    ;
+
+@[since: "ES2018"]
+async_generator_expression
+    = "async" (* no LT *) "function" '*' binding_identifier?
+      '(' formal_parameters ')' '{' async_generator_body '}'
+    ;
+
+@[since: "ES2018"]
+async_generator_body = function_body ;
+
+(* ============================================================
+   5. CLASS DECLARATIONS (ES2015)
+   Source: ECMA-262 §15.7
+   ============================================================ *)
+
+@[since: "ES2015"]
+class_declaration
+    = "class" binding_identifier class_tail
+    | "class" class_tail
+    ;
+
+@[since: "ES2015"]
+class_expression = "class" binding_identifier? class_tail ;
+
+@[since: "ES2015"]
+class_tail
+    = class_heritage? '{' class_body? '}'
+    ;
+
+@[since: "ES2015"]
+class_heritage = "extends" left_hand_side_expression ;
+
+@[since: "ES2015"]
+class_body = class_element_list ;
+
+@[since: "ES2015"]
+class_element_list = class_element+ ;
+
+@[since: "ES2015"]
+class_element
+    = method_definition
+    | @[since: "ES2015"] "static" method_definition
+    | @[since: "ES2022"] field_definition ';'
+    | @[since: "ES2022"] "static" field_definition ';'
+    | @[since: "ES2022"] class_static_block
+    | ';'
+    ;
+
+@[since: "ES2015"]
+method_definition
+    = class_element_name '(' formal_parameters ')' '{' function_body '}'
+    | "get" class_element_name '(' ')' '{' function_body '}'
+    | "set" class_element_name '(' formal_parameter ')' '{' function_body '}'
+    | '*' class_element_name '(' formal_parameters ')' '{' generator_body '}'
+    | @[since: "ES2017"] "async" (* no LT *) class_element_name '(' formal_parameters ')' '{' async_function_body '}'
+    | @[since: "ES2018"] "async" (* no LT *) '*' class_element_name '(' formal_parameters ')' '{' async_generator_body '}'
+    ;
+
+@[since: "ES2015"]
+class_element_name
+    = property_name
+    | @[since: "ES2020"] PRIVATE_IDENTIFIER
+    ;
+
+@[since: "ES2022",
+  description: "Class field definitions — public and private. TC39 proposal."]
+field_definition = class_element_name initializer? ;
+
+@[since: "ES2022",
+  description: "Class static initialization blocks. TC39 proposal."]
+class_static_block = "static" '{' statement_list? '}' ;
+
+(* ============================================================
+   6. EXPRESSIONS
+   Source: ECMA-262 §13
+   ============================================================ *)
+
+(* ------------------------------------------------------------
+   6.1 Expression hierarchy (precedence in structure)
+   Source: ECMA-262 §13.16
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+expression = assignment_expression ( ',' assignment_expression )* ;
+
+@[since: "ES2015"]
+assignment_expression
+    = conditional_expression
+    | yield_expression
+    | arrow_function
+    | @[since: "ES2017"] async_arrow_function
+    | left_hand_side_expression assignment_operator assignment_expression
+    ;
+
+@[since: "ES2015"]
+assignment_operator
+    = '='  | "+=" | "-=" | "*=" | "/=" | "%="
+    | "<<=" | ">>=" | ">>>="
+    | "&=" | "|=" | "^=" | "**="
+    | @[since: "ES2021"] "&&=" | @[since: "ES2021"] "||=" | @[since: "ES2021"] "??="
+    ;
+
+(* --- Arrow functions (ES2015) --- *)
+
+@[since: "ES2015",
+  description: "Arrow function expression.
+    [no LineTerminator here] between parameters and =>.
+    The parser uses cover grammars to handle the ambiguity
+    between arrow parameter lists and parenthesized expressions."]
+arrow_function
+    = arrow_parameters (* no LT *) "=>" concise_body
+    ;
+
+@[since: "ES2015"]
+arrow_parameters
+    = binding_identifier
+    | '(' formal_parameters ')'
+    ;
+
+@[since: "ES2015"]
+concise_body
+    = (?! '{') assignment_expression
+    | '{' function_body '}'
+    ;
+
+@[since: "ES2017",
+  description: "Async arrow function expression"]
+async_arrow_function
+    = "async" (* no LT *) arrow_parameters (* no LT *) "=>" concise_body
+    | "async" (* no LT *) binding_identifier (* no LT *) "=>" concise_body
+    ;
+
+(* --- Yield expression (ES2015 generators) --- *)
+
+@[since: "ES2015",
+  description: "Yield expression — only valid inside generator functions.
+    [no LineTerminator here] before * or expression."]
+yield_expression
+    = "yield"
+    | "yield" (* no LT *) assignment_expression
+    | "yield" (* no LT *) '*' assignment_expression
+    ;
+
+(* ------------------------------------------------------------
+   6.2 Conditional (ternary) expression
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+conditional_expression
+    = short_circuit_expression [ '?' assignment_expression ':' assignment_expression ]
+    ;
+
+@[since: "ES2020"]
+short_circuit_expression
+    = logical_or_expression
+    | @[since: "ES2020"] coalesce_expression
+    ;
+
+@[since: "ES2020",
+  description: "Nullish coalescing — ??. Cannot mix with && or || without parens."]
+coalesce_expression
+    = coalesce_expression_head "??" bitwise_or_expression
+    ;
+
+@[since: "ES2020"]
+coalesce_expression_head
+    = coalesce_expression
+    | bitwise_or_expression
+    ;
+
+(* ------------------------------------------------------------
+   6.3 Binary operators — precedence hierarchy
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+logical_or_expression
+    = logical_and_expression ( "||" logical_and_expression )* ;
+
+@[since: "ES2015"]
+logical_and_expression
+    = bitwise_or_expression ( "&&" bitwise_or_expression )* ;
+
+@[since: "ES2015"]
+bitwise_or_expression
+    = bitwise_xor_expression ( '|' bitwise_xor_expression )* ;
+
+@[since: "ES2015"]
+bitwise_xor_expression
+    = bitwise_and_expression ( '^' bitwise_and_expression )* ;
+
+@[since: "ES2015"]
+bitwise_and_expression
+    = equality_expression ( '&' equality_expression )* ;
+
+@[since: "ES2015"]
+equality_expression
+    = relational_expression ( ( "==" | "!=" | "===" | "!==" ) relational_expression )* ;
+
+@[since: "ES2015"]
+relational_expression
+    = shift_expression
+      ( ( '<' | '>' | "<=" | ">=" | "instanceof" | "in" ) shift_expression )*
+    ;
+
+@[since: "ES2015"]
+shift_expression
+    = additive_expression ( ( "<<" | ">>" | ">>>" ) additive_expression )* ;
+
+@[since: "ES2015"]
+additive_expression
+    = multiplicative_expression ( ( '+' | '-' ) multiplicative_expression )* ;
+
+@[since: "ES2015"]
+multiplicative_expression
+    = exponentiation_expression ( ( '*' | '/' | '%' ) exponentiation_expression )* ;
+
+@[since: "ES2016",
+  description: "Exponentiation operator ** (right-associative). ES2016."]
+exponentiation_expression
+    = unary_expression
+    | update_expression "**" exponentiation_expression
+    ;
+
+(* ------------------------------------------------------------
+   6.4 Unary and Update expressions
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+unary_expression
+    = update_expression
+    | "delete" unary_expression
+    | "void" unary_expression
+    | "typeof" unary_expression
+    | '+' unary_expression
+    | '-' unary_expression
+    | '~' unary_expression
+    | '!' unary_expression
+    | @[since: "ES2017"] await_expression
+    ;
+
+@[since: "ES2015",
+  description: "Update expressions. [no LineTerminator here] between
+    operand and postfix ++/--."]
+update_expression
+    = left_hand_side_expression
+    | left_hand_side_expression (* no LT *) "++"
+    | left_hand_side_expression (* no LT *) "--"
+    | "++" unary_expression
+    | "--" unary_expression
+    ;
+
+@[since: "ES2017",
+  description: "Await expression — only valid in async context"]
+await_expression = "await" unary_expression ;
+
+(* ------------------------------------------------------------
+   6.5 Left-hand-side expressions
+   Source: ECMA-262 §13.3
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+left_hand_side_expression
+    = new_expression
+    | call_expression
+    | @[since: "ES2020"] optional_expression
+    ;
+
+@[since: "ES2015"]
+new_expression
+    = member_expression
+    | "new" new_expression
+    ;
+
+@[since: "ES2015"]
+member_expression
+    = primary_expression
+    | member_expression '[' expression ']'
+    | member_expression '.' IDENTIFIER_NAME
+    | member_expression '.' PRIVATE_IDENTIFIER
+    | member_expression template_literal
+    | "new" member_expression arguments
+    | @[since: "ES2020"] import_meta
+    | super_property
+    ;
+
+@[since: "ES2015"]
+super_property
+    = "super" '[' expression ']'
+    | "super" '.' IDENTIFIER_NAME
+    ;
+
+@[since: "ES2015"]
+call_expression
+    = cover_call_expression_and_async_arrow_head
+    | "super" arguments
+    | @[since: "ES2020"] import_call
+    | call_expression arguments
+    | call_expression '[' expression ']'
+    | call_expression '.' IDENTIFIER_NAME
+    | call_expression '.' PRIVATE_IDENTIFIER
+    | call_expression template_literal
+    ;
+
+@[since: "ES2015"]
+cover_call_expression_and_async_arrow_head
+    = member_expression arguments ;
+
+@[since: "ES2015"]
+arguments = '(' [ argument_list ] ')' ;
+
+@[since: "ES2015"]
+argument_list
+    = assignment_expression ( ',' assignment_expression )*
+    | "..." assignment_expression ( ',' assignment_expression )*
+    ;
+
+(* --- Optional chaining (ES2020) --- *)
+
+@[since: "ES2020",
+  description: "Optional chaining ?. — TC39 proposal"]
+optional_expression
+    = member_expression optional_chain
+    | call_expression optional_chain
+    | optional_expression optional_chain
+    ;
+
+@[since: "ES2020"]
+optional_chain
+    = "?." arguments
+    | "?." '[' expression ']'
+    | "?." IDENTIFIER_NAME
+    | "?." PRIVATE_IDENTIFIER
+    | "?." template_literal
+    | optional_chain arguments
+    | optional_chain '[' expression ']'
+    | optional_chain '.' IDENTIFIER_NAME
+    | optional_chain '.' PRIVATE_IDENTIFIER
+    | optional_chain template_literal
+    ;
+
+(* --- Tagged template literal --- *)
+
+@[since: "ES2015"]
+template_literal = NO_SUBSTITUTION_TEMPLATE | template_spans ;
+
+@[since: "ES2015"]
+template_spans = TEMPLATE_HEAD expression ( TEMPLATE_MIDDLE expression )* TEMPLATE_TAIL ;
+
+(* ------------------------------------------------------------
+   6.6 Primary expressions
+   Source: ECMA-262 §13.2
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015"]
+primary_expression
+    = "this"
+    | IDENTIFIER_NAME
+    | literal
+    | array_literal
+    | object_literal
+    | function_expression
+    | class_expression
+    | generator_expression
+    | @[since: "ES2017"] async_function_expression
+    | @[since: "ES2018"] async_generator_expression
+    | REGULAR_EXPRESSION_LITERAL
+    | template_literal
+    | '(' expression ')'
+    ;
+
+@[since: "ES2015"]
+literal
+    = NULL_LITERAL
+    | BOOLEAN_LITERAL
+    | NUMERIC_LITERAL
+    | STRING_LITERAL
+    ;
+
+@[since: "ES2015"]
+NULL_LITERAL = "null" ;
+
+@[since: "ES2015"]
+BOOLEAN_LITERAL = "true" | "false" ;
+
+(* --- Array literal --- *)
+
+@[since: "ES2015"]
+array_literal
+    = '[' elision? ']'
+    | '[' element_list ']'
+    | '[' element_list ',' elision? ']'
+    ;
+
+@[since: "ES2015"]
+element_list
+    = elision? ( assignment_expression | spread_element )
+      ( ',' elision? ( assignment_expression | spread_element ) )*
+    ;
+
+@[since: "ES2015"]
+spread_element = "..." assignment_expression ;
+
+(* --- Object literal --- *)
+
+@[since: "ES2015"]
+object_literal = '{' [ property_definition_list [ ',' ] ] '}' ;
+
+@[since: "ES2015"]
+property_definition_list
+    = property_definition ( ',' property_definition )* ;
+
+@[since: "ES2015"]
+property_definition
+    = IDENTIFIER_NAME                              (* shorthand property *)
+    | cover_initialized_name
+    | property_name ':' assignment_expression
+    | method_definition
+    | @[since: "ES2018"] "..." assignment_expression    (* spread properties *)
+    ;
+
+@[since: "ES2015"]
+property_name
+    = literal_property_name
+    | computed_property_name
+    ;
+
+@[since: "ES2015"]
+literal_property_name
+    = IDENTIFIER_NAME
+    | STRING_LITERAL
+    | NUMERIC_LITERAL
+    ;
+
+@[since: "ES2015"]
+computed_property_name = '[' assignment_expression ']' ;
+
+@[since: "ES2015"]
+cover_initialized_name = IDENTIFIER_NAME initializer ;
+
+@[since: "ES2015"]
+initializer = '=' assignment_expression ;
+
+(* ============================================================
+   7. DESTRUCTURING ASSIGNMENT
+   Source: ECMA-262 §13.15.5
+
+   Destructuring uses cover grammars: the parser first parses
+   as an expression (array/object literal) and then reinterprets
+   as a destructuring pattern when followed by =.
+   ============================================================ *)
+
+@[since: "ES2015",
+  description: "Destructuring assignment patterns use cover grammars.
+    An array/object literal is reinterpreted as a destructuring
+    pattern when used as the left-hand side of assignment.
+    This reinterpretation is context-sensitive."]
+assignment_pattern
+    = object_assignment_pattern
+    | array_assignment_pattern
+    ;
+
+@[since: "ES2015"]
+object_assignment_pattern
+    = '{' [ assignment_property_list [ ',' [ assignment_rest_property ] ] ] '}'
+    ;
+
+@[since: "ES2015"]
+array_assignment_pattern
+    = '[' [ elision ] assignment_rest_element? ']'
+    | '[' assignment_element_list [ ',' [ elision ] assignment_rest_element? ] ']'
+    ;
+
+@[since: "ES2015"]
+assignment_property_list = assignment_property ( ',' assignment_property )* ;
+
+@[since: "ES2015"]
+assignment_property
+    = IDENTIFIER_NAME initializer?
+    | property_name ':' assignment_element
+    ;
+
+@[since: "ES2015"]
+assignment_element
+    = left_hand_side_expression initializer?
+    | assignment_pattern initializer?
+    ;
+
+@[since: "ES2018"]
+assignment_rest_property = "..." left_hand_side_expression ;
+
+@[since: "ES2015"]
+assignment_rest_element = "..." left_hand_side_expression ;
+
+@[since: "ES2015"]
+assignment_element_list
+    = elision? assignment_element ( ',' elision? assignment_element )* ;
+
+(* ============================================================
+   8. COMMON PRODUCTIONS
+   ============================================================ *)
+
+@[since: "ES2015"]
+binding_identifier = IDENTIFIER_NAME ;
+    (* Excludes reserved words based on context *)
+
+(* ============================================================
+   9. VERSION HISTORY — SYNTACTIC ADDITIONS BY ES VERSION
+
+   This section is non-normative. It summarizes the syntactic
+   changes across ECMAScript editions to support grammar diffing.
+
+   ES2015 (ES6): (Jun 2015) — MAJOR revision
+       - Arrow functions (=>)
+       - Classes (class, extends, constructor, super)
+       - Template literals with expression interpolation
+       - Destructuring assignment (arrays, objects)
+       - Default, rest, spread parameters
+       - let and const block scoping
+       - for-of iteration
+       - Generators (function*, yield)
+       - Modules (import, export)
+       - Computed property names
+       - Shorthand property and method definitions
+       - Symbol primitive type
+       - Promises
+       - Proxies and Reflect
+       - Tail call optimization
+       Source: ECMA-262 6th Edition
+
+   ES2016:
+       - Exponentiation operator ** (right-associative)
+       Source: ECMA-262 7th Edition
+
+   ES2017:
+       - Async functions (async/await)
+       - Trailing commas in function parameter lists and calls
+       Source: ECMA-262 8th Edition
+
+   ES2018:
+       - Async generators (async function*)
+       - for-await-of statement
+       - Object rest/spread properties ({...obj})
+       Source: ECMA-262 9th Edition
+
+   ES2019:
+       - Optional catch binding (catch without parameter)
+       Source: ECMA-262 10th Edition
+
+   ES2020:
+       - Optional chaining (?.)
+       - Nullish coalescing (??)
+       - Dynamic import (import())
+       - import.meta
+       - BigInt
+       - globalThis
+       - Private class fields (#name)
+       - export * as ns from "module"
+       Source: ECMA-262 11th Edition
+
+   ES2021:
+       - Logical assignment operators (&&=, ||=, ??=)
+       - Numeric separators in literals (_)
+       Source: ECMA-262 12th Edition
+
+   ES2022:
+       - Class fields (public and private)
+       - Class static initialization blocks (static {})
+       - Top-level await (in modules)
+       - Ergonomic brand checks (#x in obj)
+       - String module export specifiers
+       Source: ECMA-262 13th Edition
+
+   ES2023:
+       - Hashbang comments (#!)
+       Source: ECMA-262 14th Edition
+
+   ES2024:
+       - Grouping/Array grouping (Object.groupBy, Map.groupBy)
+       - Well-formed Unicode strings
+       - Promise.withResolvers
+       (Mostly library additions, minimal grammar changes)
+       Source: ECMA-262 15th Edition
+   ============================================================ *)

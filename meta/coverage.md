@@ -7,10 +7,10 @@ This document tracks grammar coverage status across all languages.
 | Language | Format | Conformance | Versions Covered | Lexical | Syntactic | Notes |
 |----------|--------|-------------|------------------|---------|-----------|-------|
 | C# | **XEBNF** | **Level 1** | 1.0 – 14.0 | ~907 lines | ~2,308 lines | Comprehensive, version-annotated |
-| Python | EBNF | Level 0 | 3.13 | ~21 lines | ~33 lines | Structural placeholder |
-| JavaScript | EBNF | Level 0 | ES2024 | ~46 lines | ~59 lines | Structural placeholder |
-| Java | EBNF | Level 0 | 21 | ~17 lines | ~36 lines | Structural placeholder |
-| Go | EBNF | Level 0 | 1.22 | ~15 lines | ~34 lines | Structural placeholder |
+| Go | **XEBNF** | **Level 1** | 1.13 – 1.22 | ~506 lines | ~870 lines | Comprehensive, version-annotated |
+| Python | **XEBNF** | **Level 1** | 3.6 – 3.13 | ~658 lines | ~984 lines | Comprehensive, version-annotated |
+| Java | **XEBNF** | **Level 1** | 5 – 21 | ~575 lines | ~1,309 lines | Comprehensive, version-annotated |
+| JavaScript | **XEBNF** | **Level 1** | ES2015 – ES2024 | ~615 lines | ~1,152 lines | Comprehensive, version-annotated |
 | Turtle | EBNF | Level 0 | 1.1 | — | ~55 lines | Single grammar file |
 | SPARQL | EBNF | Level 1 | 1.1 | — | ~244 lines | Most complete legacy grammar |
 
@@ -20,9 +20,7 @@ See [conformance.md](conformance.md) for level definitions.
 
 ## Migration Status
 
-C# is the first language fully migrated to XEBNF. Other languages retain their legacy EBNF files and are candidates for XEBNF rewrite. Priority candidates:
+Five languages have been migrated to comprehensive XEBNF Level 1 grammars: C#, Go, Python, Java, and JavaScript. Remaining legacy EBNF candidates:
 
 1. **SPARQL** — already 244 lines, small language, high relevance to Sky Omega
 2. **Turtle** — small, single-version, straightforward conversion
-3. **Python** — large language, PEG grammar available as authoritative source
-4. **JavaScript** — large language, ECMA-262 appendix grammar available

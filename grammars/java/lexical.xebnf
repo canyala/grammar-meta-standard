@@ -1,0 +1,575 @@
+(* ============================================================
+   Java 21 Lexical Grammar
+   XEBNF Specification
+
+   Source: The Java Language Specification (JLS)
+     Chapter 3 — Lexical Structure
+     https://docs.oracle.com/javase/specs/jls/se21/html/jls-3.html
+   Cross-referenced with:
+     - JLS SE 8 through SE 21
+     - JEP documents per version
+
+   Conformance: Level 1 (Partial)
+   Known gaps documented inline.
+   ============================================================ *)
+
+@grammar {
+    name: "Java" ;
+    version: "21" ;
+    family: "java" ;
+    spec: "The Java Language Specification, Java SE 21 Edition" ;
+    uri: "https://docs.oracle.com/javase/specs/jls/se21/html/jls-3.html" ;
+    conformance: 1 ;
+    conformance_notes: "Lexical grammar covers tokens, literals, keywords,
+        operators, and separators. Context-sensitive constructs include:
+        >> in generics (two > tokens, not one >>), var as reserved
+        type name, yield in switch expressions, and module-only
+        restricted keywords." ;
+}
+
+@predicates {
+    in_module: "Currently within a module declaration — restricted keywords
+        (open, module, requires, transitive, exports, opens, to, uses,
+        provides, with) have keyword semantics" ;
+}
+
+(* ============================================================
+   1. UNICODE INPUT
+   Source: JLS §3.1, §3.2, §3.3
+
+   Java source is Unicode. Unicode escapes (\uXXXX) are
+   processed before tokenization.
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+unicode_input_character
+    = raw_input_character
+    | UNICODE_ESCAPE
+    ;
+
+@[category: "fragment"]
+raw_input_character = ? any Unicode character ? ;
+
+@[since: "1.0", category: "lexical",
+  description: "Unicode escapes are processed before tokenization.
+    \\uXXXX is replaced by the Unicode character. Multiple u's allowed: \\uuXXXX"]
+UNICODE_ESCAPE = '\\' 'u'+ HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT ;
+
+(* ============================================================
+   2. LINE TERMINATORS
+   Source: JLS §3.4
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+LINE_TERMINATOR
+    = '\u{000A}'                    (* LF *)
+    | '\u{000D}'                    (* CR *)
+    | '\u{000D}' '\u{000A}'        (* CR LF *)
+    ;
+
+(* ============================================================
+   3. WHITESPACE
+   Source: JLS §3.6
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+WHITESPACE
+    = ' '           (* SP *)
+    | '\u{0009}'    (* HT *)
+    | '\u{000C}'    (* FF *)
+    | LINE_TERMINATOR
+    ;
+
+(* ============================================================
+   4. COMMENTS
+   Source: JLS §3.7
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+COMMENT
+    = TRADITIONAL_COMMENT
+    | END_OF_LINE_COMMENT
+    ;
+
+@[category: "fragment"]
+TRADITIONAL_COMMENT = "/*" ( ~'*' | '*' (?! '/') )* "*/" ;
+
+@[category: "fragment"]
+END_OF_LINE_COMMENT = "//" ~LINE_TERMINATOR_CHAR* ;
+
+@[category: "fragment"]
+LINE_TERMINATOR_CHAR = '\u{000A}' | '\u{000D}' ;
+
+(* ============================================================
+   5. TOKENS
+   Source: JLS §3.5
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+token
+    = IDENTIFIER
+    | keyword
+    | literal
+    | separator
+    | operator
+    ;
+
+(* ============================================================
+   6. IDENTIFIERS
+   Source: JLS §3.8
+
+   Java identifiers use Unicode character categories.
+   An identifier cannot be a keyword, boolean literal,
+   or null literal.
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical",
+  description: "Java identifiers follow Unicode categories.
+    Cannot be a keyword, boolean literal, or null literal."]
+IDENTIFIER = JAVA_LETTER JAVA_LETTER_OR_DIGIT* ;
+
+@[category: "fragment",
+  description: "Character that can start an identifier.
+    Character.isJavaIdentifierStart(): Lu, Ll, Lt, Lm, Lo, Nl, Sc, Pc"]
+JAVA_LETTER
+    = \p{L}
+    | \p{Nl}
+    | \p{Sc}        (* currency symbols: $, £, ¥, etc. *)
+    | \p{Pc}        (* connector punctuation: _ *)
+    ;
+
+@[category: "fragment",
+  description: "Character that can continue an identifier.
+    Character.isJavaIdentifierPart(): adds Mn, Mc, Nd, Cf"]
+JAVA_LETTER_OR_DIGIT
+    = JAVA_LETTER
+    | \p{Nd}
+    | \p{Mn}
+    | \p{Mc}
+    | \p{Cf}        (* format characters, e.g. zero-width joiner *)
+    ;
+
+(* ============================================================
+   7. KEYWORDS
+   Source: JLS §3.9
+
+   Java has reserved keywords plus contextual keywords
+   (restricted identifiers/keywords added in later versions).
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+keyword
+    = "abstract"    | "assert"      | "boolean"     | "break"
+    | "byte"        | "case"        | "catch"       | "char"
+    | "class"       | "const"       | "continue"    | "default"
+    | "do"          | "double"      | "else"        | @[since: "5"] "enum"
+    | "extends"     | "final"       | "finally"     | "float"
+    | "for"         | "goto"        | "if"          | "implements"
+    | "import"      | "instanceof"  | "int"         | "interface"
+    | "long"        | "native"      | "new"         | "package"
+    | "private"     | "protected"   | "public"      | "return"
+    | "short"       | "static"      | "strictfp"    | "super"
+    | "switch"      | "synchronized"| "this"        | "throw"
+    | "throws"      | "transient"   | "try"         | "void"
+    | "volatile"    | "while"
+    (* underscore keyword since Java 9 *)
+    | @[since: "9"] "_"
+    ;
+
+(* Note: "const" and "goto" are reserved but not used. *)
+
+(* ------------------------------------------------------------
+   Contextual keywords (restricted identifiers)
+
+   These identifiers have special meaning only in certain
+   syntactic contexts. They are valid identifiers elsewhere.
+   ------------------------------------------------------------ *)
+
+@[since: "10", category: "lexical",
+  description: "var — reserved type name, not a keyword.
+    Valid as a variable name but not as a type declaration.
+    JLS §3.8, JEP 286 (Java 10)"]
+CONTEXTUAL_VAR = "var" ;
+
+@[since: "14", category: "lexical",
+  description: "yield — restricted identifier in switch expressions.
+    Cannot be used as a type name. JEP 361 (Java 14)"]
+CONTEXTUAL_YIELD = "yield" ;
+
+@[since: "9", category: "lexical",
+  description: "Module-related restricted keywords.
+    Only have keyword semantics inside module declarations.
+    JLS §3.9, JEP 261 (Java 9)"]
+module_restricted_keyword
+    = "open"        | "module"      | "requires"
+    | "transitive"  | "exports"     | "opens"
+    | "to"          | "uses"        | "provides"
+    | "with"
+    ;
+
+@[since: "17", category: "lexical",
+  description: "sealed, non-sealed, permits — restricted identifiers
+    for sealed classes. JEP 409 (Java 17)"]
+sealed_restricted_keyword
+    = "sealed"
+    | "non-sealed"
+    | "permits"
+    ;
+
+@[since: "16", category: "lexical",
+  description: "record — restricted identifier for record declarations.
+    JEP 395 (Java 16)"]
+CONTEXTUAL_RECORD = "record" ;
+
+(* ============================================================
+   8. LITERALS
+   Source: JLS §3.10
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+literal
+    = INTEGER_LITERAL
+    | FLOATING_POINT_LITERAL
+    | BOOLEAN_LITERAL
+    | CHARACTER_LITERAL
+    | STRING_LITERAL
+    | @[since: "15"] TEXT_BLOCK
+    | NULL_LITERAL
+    ;
+
+(* ------------------------------------------------------------
+   8.1 Integer literals
+   Source: JLS §3.10.1
+
+   Java 7 added binary literals and underscores in literals.
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+INTEGER_LITERAL
+    = DECIMAL_INTEGER_LITERAL
+    | HEX_INTEGER_LITERAL
+    | OCTAL_INTEGER_LITERAL
+    | @[since: "7"] BINARY_INTEGER_LITERAL
+    ;
+
+@[category: "fragment"]
+DECIMAL_INTEGER_LITERAL = DECIMAL_NUMERAL INTEGER_TYPE_SUFFIX? ;
+
+@[category: "fragment"]
+HEX_INTEGER_LITERAL = HEX_NUMERAL INTEGER_TYPE_SUFFIX? ;
+
+@[category: "fragment"]
+OCTAL_INTEGER_LITERAL = OCTAL_NUMERAL INTEGER_TYPE_SUFFIX? ;
+
+@[since: "7", category: "fragment"]
+BINARY_INTEGER_LITERAL = BINARY_NUMERAL INTEGER_TYPE_SUFFIX? ;
+
+@[category: "fragment"]
+INTEGER_TYPE_SUFFIX = 'l' | 'L' ;
+
+@[category: "fragment"]
+DECIMAL_NUMERAL
+    = '0'
+    | NON_ZERO_DIGIT DIGITS?
+    | NON_ZERO_DIGIT UNDERSCORES DIGITS
+    ;
+
+@[category: "fragment"]
+DIGITS = DIGIT ( DIGIT_OR_UNDERSCORE* DIGIT )? ;
+
+@[category: "fragment"]
+DIGIT = '0'..'9' ;
+
+@[category: "fragment"]
+DIGIT_OR_UNDERSCORE = DIGIT | '_' ;
+
+@[category: "fragment"]
+UNDERSCORES = '_'+ ;
+
+@[category: "fragment"]
+NON_ZERO_DIGIT = '1'..'9' ;
+
+@[category: "fragment"]
+HEX_NUMERAL = '0' ( 'x' | 'X' ) HEX_DIGITS ;
+
+@[category: "fragment"]
+HEX_DIGITS = HEX_DIGIT ( HEX_DIGIT_OR_UNDERSCORE* HEX_DIGIT )? ;
+
+@[category: "fragment"]
+HEX_DIGIT = '0'..'9' | 'a'..'f' | 'A'..'F' ;
+
+@[category: "fragment"]
+HEX_DIGIT_OR_UNDERSCORE = HEX_DIGIT | '_' ;
+
+@[category: "fragment"]
+OCTAL_NUMERAL = '0' OCTAL_DIGITS ;
+
+@[category: "fragment"]
+OCTAL_DIGITS = OCTAL_DIGIT ( OCTAL_DIGIT_OR_UNDERSCORE* OCTAL_DIGIT )? ;
+
+@[category: "fragment"]
+OCTAL_DIGIT = '0'..'7' ;
+
+@[category: "fragment"]
+OCTAL_DIGIT_OR_UNDERSCORE = OCTAL_DIGIT | '_' ;
+
+@[since: "7", category: "fragment"]
+BINARY_NUMERAL = '0' ( 'b' | 'B' ) BINARY_DIGITS ;
+
+@[category: "fragment"]
+BINARY_DIGITS = BINARY_DIGIT ( BINARY_DIGIT_OR_UNDERSCORE* BINARY_DIGIT )? ;
+
+@[category: "fragment"]
+BINARY_DIGIT = '0' | '1' ;
+
+@[category: "fragment"]
+BINARY_DIGIT_OR_UNDERSCORE = BINARY_DIGIT | '_' ;
+
+(* ------------------------------------------------------------
+   8.2 Floating-point literals
+   Source: JLS §3.10.2
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+FLOATING_POINT_LITERAL
+    = DECIMAL_FLOATING_POINT_LITERAL
+    | HEX_FLOATING_POINT_LITERAL
+    ;
+
+@[category: "fragment"]
+DECIMAL_FLOATING_POINT_LITERAL
+    = DIGITS '.' DIGITS? EXPONENT_PART? FLOAT_TYPE_SUFFIX?
+    | '.' DIGITS EXPONENT_PART? FLOAT_TYPE_SUFFIX?
+    | DIGITS EXPONENT_PART FLOAT_TYPE_SUFFIX?
+    | DIGITS FLOAT_TYPE_SUFFIX
+    ;
+
+@[category: "fragment"]
+EXPONENT_PART = ( 'e' | 'E' ) SIGNED_INTEGER ;
+
+@[category: "fragment"]
+SIGNED_INTEGER = ( '+' | '-' )? DIGITS ;
+
+@[category: "fragment"]
+FLOAT_TYPE_SUFFIX = 'f' | 'F' | 'd' | 'D' ;
+
+@[category: "fragment"]
+HEX_FLOATING_POINT_LITERAL = HEX_SIGNIFICAND BINARY_EXPONENT FLOAT_TYPE_SUFFIX? ;
+
+@[category: "fragment"]
+HEX_SIGNIFICAND
+    = HEX_NUMERAL '.'?
+    | '0' ( 'x' | 'X' ) HEX_DIGITS? '.' HEX_DIGITS
+    ;
+
+@[category: "fragment"]
+BINARY_EXPONENT = ( 'p' | 'P' ) SIGNED_INTEGER ;
+
+(* ------------------------------------------------------------
+   8.3 Boolean literals
+   Source: JLS §3.10.3
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+BOOLEAN_LITERAL = "true" | "false" ;
+
+(* ------------------------------------------------------------
+   8.4 Character literals
+   Source: JLS §3.10.4
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+CHARACTER_LITERAL = "'" SINGLE_CHARACTER "'" | "'" ESCAPE_SEQUENCE "'" ;
+
+@[category: "fragment"]
+SINGLE_CHARACTER = ~( "'" | '\\' | LINE_TERMINATOR_CHAR ) ;
+
+(* ------------------------------------------------------------
+   8.5 String literals
+   Source: JLS §3.10.5
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+STRING_LITERAL = '"' STRING_CHARACTER* '"' ;
+
+@[category: "fragment"]
+STRING_CHARACTER
+    = ~( '"' | '\\' | LINE_TERMINATOR_CHAR )
+    | ESCAPE_SEQUENCE
+    ;
+
+(* ------------------------------------------------------------
+   8.6 Text blocks (Java 15)
+   Source: JLS §3.10.6, JEP 378
+
+   Text blocks are multi-line string literals delimited by
+   triple double quotes. Content is processed for incidental
+   whitespace removal.
+   ------------------------------------------------------------ *)
+
+@[since: "15", category: "lexical",
+  description: "Text blocks — multi-line string literals with
+    automatic indentation management. JEP 378."]
+TEXT_BLOCK = '"""' LINE_TERMINATOR TEXT_BLOCK_CHARACTER* '"""' ;
+
+@[category: "fragment"]
+TEXT_BLOCK_CHARACTER
+    = ~( '\\' | '"' )
+    | '"' (?! '""')
+    | '""' (?! '"')
+    | ESCAPE_SEQUENCE
+    ;
+
+(* ------------------------------------------------------------
+   8.7 Escape sequences
+   Source: JLS §3.10.7
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+ESCAPE_SEQUENCE
+    = '\\' ( 'b' | 't' | 'n' | 'f' | 'r' | '"' | "'" | '\\' )
+    | OCTAL_ESCAPE
+    | @[since: "15"] "\\s"      (* space escape in text blocks *)
+    | @[since: "15"] '\\' LINE_TERMINATOR    (* line continuation in text blocks *)
+    ;
+
+@[category: "fragment"]
+OCTAL_ESCAPE
+    = '\\' OCTAL_DIGIT
+    | '\\' OCTAL_DIGIT OCTAL_DIGIT
+    | '\\' ZERO_TO_THREE OCTAL_DIGIT OCTAL_DIGIT
+    ;
+
+@[category: "fragment"]
+ZERO_TO_THREE = '0'..'3' ;
+
+(* ------------------------------------------------------------
+   8.8 Null literal
+   Source: JLS §3.10.8
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+NULL_LITERAL = "null" ;
+
+(* ============================================================
+   9. SEPARATORS
+   Source: JLS §3.11
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+separator
+    = '('  | ')'  | '{'  | '}'  | '['  | ']'
+    | ';'  | ','  | '.'  | "..."
+    | '@'
+    | "::"
+    ;
+
+(* ============================================================
+   10. OPERATORS
+   Source: JLS §3.12
+   ============================================================ *)
+
+@[since: "1.0", category: "lexical"]
+operator
+    (* Assignment *)
+    = '='
+
+    (* Comparison *)
+    | "==" | "!=" | '<' | '>' | "<=" | ">="
+
+    (* Logical *)
+    | '!'  | "&&" | "||"
+
+    (* Bitwise *)
+    | '~'  | '&'  | '|'  | '^'
+
+    (* Arithmetic *)
+    | '+'  | '-'  | '*'  | '/'  | '%'
+
+    (* Shift *)
+    | "<<" | ">>" | ">>>"
+
+    (* Compound assignment *)
+    | "+=" | "-=" | "*=" | "/=" | "%="
+    | "&=" | "|=" | "^=" | "<<=" | ">>=" | ">>>="
+
+    (* Increment/decrement *)
+    | "++" | "--"
+
+    (* Ternary *)
+    | '?'  | ':'
+
+    (* Arrow and method reference *)
+    | @[since: "8"]  "->"
+
+    (* instanceof *)
+    | "instanceof"
+    ;
+
+(* ============================================================
+   11. VERSION HISTORY — LEXICAL ADDITIONS BY JAVA VERSION
+
+   This section is non-normative. It summarizes the lexical
+   changes across Java versions to support grammar diffing.
+
+   Java 1.0 – 4: Base Java lexical grammar.
+       Keywords, identifiers (Unicode), integer/float/char/string
+       literals, all operators and separators.
+
+   Java 5: (Sep 2004)
+       - enum keyword (previously reserved but unused)
+       Source: JLS SE 5, JEP — (predates JEP system)
+
+   Java 7: (Jul 2011)
+       - Binary integer literals (0b/0B prefix)
+       - Underscores in numeric literals
+       Source: JLS SE 7
+
+   Java 8: (Mar 2014)
+       - Arrow operator -> (lambda expressions)
+       - Method reference separator :: (already lexical separator)
+       Source: JLS SE 8, JEP 126
+
+   Java 9: (Sep 2017)
+       - Module restricted keywords: open, module, requires,
+         transitive, exports, opens, to, uses, provides, with
+       - Underscore _ as keyword (cannot be used as identifier)
+       Source: JLS SE 9, JEP 261
+
+   Java 10: (Mar 2018)
+       - var as reserved type name (not a keyword)
+       Source: JLS SE 10, JEP 286
+
+   Java 11: (Sep 2018)
+       - var in lambda parameters
+       Source: JLS SE 11, JEP 323
+
+   Java 12 – 13: No lexical changes.
+       (Switch expressions preview — syntactic)
+
+   Java 14: (Mar 2020)
+       - yield as restricted identifier (switch expressions)
+       Source: JLS SE 14, JEP 361
+
+   Java 15: (Sep 2020)
+       - Text blocks (triple-quoted strings)
+       - \s escape sequence (space) in text blocks
+       - \ line continuation in text blocks
+       Source: JLS SE 15, JEP 378
+
+   Java 16: (Mar 2021)
+       - record as restricted identifier
+       Source: JLS SE 16, JEP 395
+
+   Java 17: (Sep 2021)
+       - sealed, non-sealed, permits restricted identifiers
+       Source: JLS SE 17, JEP 409
+
+   Java 18 – 20: No lexical changes.
+
+   Java 21: (Sep 2023)
+       - No lexical changes
+       (Record patterns, pattern matching for switch,
+        virtual threads — syntactic/runtime)
+       Source: JLS SE 21
+   ============================================================ *)

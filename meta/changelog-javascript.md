@@ -1,30 +1,32 @@
 # JavaScript Grammar Changelog
 
-This changelog summarizes grammar-level updates across ECMAScript versions.
+## XEBNF Migration (2026-02-07)
 
----
+The JavaScript grammar has been migrated from per-version EBNF stubs to comprehensive XEBNF files covering ES2015 through ES2024.
 
-## ECMAScript 2022 → 2023
+- **lexical.xebnf** — 615 lines, 11 sections, ~90 productions
+- **syntax.xebnf** — 1,152 lines, 9 sections, ~180 productions
+- **Version annotations** tracking feature introductions across 10 ECMAScript editions (ES2015 classes/arrows/modules, ES2017 async/await, ES2020 optional chaining/nullish coalescing, ES2022 class fields)
+- Conformance Level 1 (Partial) with documented gaps
 
-- Added support for:
-  - `Array.prototype.findLast()` and `findLastIndex()` methods
-  - Unicode `v` flag in regular expressions
-  - `with`-like blocks in testing syntax contexts (experimental)
-- Expanded handling of `class fields` and `private` identifiers
-- Enabled `top-level await` in modules
+### Previous state
 
----
+- `lexical.ebnf` (47 lines) — structural placeholder
+- `syntax.ebnf` (60 lines) — structural placeholder
 
-## ECMAScript 2021 → 2022
+These have been removed. Their content is fully subsumed by the XEBNF grammar's `@[since:]` annotations.
 
-- Introduced `class static blocks`
-- Clarified short-circuit assignment parsing (`&&=`, `||=`, `??=`)
-- Unified handling of numeric separators in literals
-- Improved optional chaining semantics
+## Version History (by ECMAScript edition)
 
----
+The grammar's non-normative Section 11 (in lexical.xebnf) and Section 9 (in syntax.xebnf) contain version-by-version changelogs. Rather than duplicate that here, refer to those sections directly:
 
-Each version’s grammar is stored under:
-- `grammars/javascript/v2023/`
+```bash
+# View syntactic version history
+grep -A 80 'VERSION HISTORY' grammars/javascript/syntax.xebnf
 
-Additional versions can be added later in `v2022/`, `v2021/`, etc.
+# View lexical version history
+grep -A 60 'VERSION HISTORY' grammars/javascript/lexical.xebnf
+
+# Find all features added in a specific version
+grep 'since: "ES2020"' grammars/javascript/lexical.xebnf grammars/javascript/syntax.xebnf
+```

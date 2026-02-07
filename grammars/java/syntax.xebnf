@@ -1,0 +1,1309 @@
+(* ============================================================
+   Java 21 Syntactic Grammar
+   XEBNF Specification
+
+   Source: The Java Language Specification (JLS)
+     Chapter 19 — Syntax
+     https://docs.oracle.com/javase/specs/jls/se21/html/jls-19.html
+   Cross-referenced with:
+     - JLS SE 8 through SE 21
+     - JEP documents per version
+
+   Companion to: lexical.xebnf
+
+   Conformance: Level 1 (Partial)
+   Known gaps documented inline.
+   ============================================================ *)
+
+@grammar {
+    name: "Java" ;
+    version: "21" ;
+    family: "java" ;
+    spec: "The Java Language Specification, Java SE 21 Edition" ;
+    uri: "https://docs.oracle.com/javase/specs/jls/se21/html/jls-19.html" ;
+    conformance: 1 ;
+    conformance_notes: "Syntactic grammar covers types, expressions, statements,
+        classes, interfaces, and modules through Java 21. Operator
+        precedence is encoded via production hierarchy. Context-
+        sensitive constructs (>> in generics, var as type, yield in
+        switch) are annotated but not fully enforced." ;
+}
+
+@imports {
+    lexical: "./lexical.xebnf" ;
+}
+
+@predicates {
+    in_module: "Currently within a module declaration" ;
+    in_switch_expr: "Currently within a switch expression (yield valid)" ;
+    in_sealed: "Currently within sealed class context (permits valid)" ;
+}
+
+(* ============================================================
+   1. COMPILATION UNIT
+   Source: JLS §7.3, §7.4
+   ============================================================ *)
+
+@[since: "1.0"]
+compilation_unit
+    = ordinary_compilation_unit
+    | @[since: "9"] modular_compilation_unit
+    ;
+
+@[since: "1.0"]
+ordinary_compilation_unit
+    = [ package_declaration ] import_declaration* type_declaration*
+    ;
+
+@[since: "9",
+  description: "Module compilation unit — JEP 261"]
+modular_compilation_unit
+    = import_declaration* module_declaration
+    ;
+
+(* ------------------------------------------------------------
+   1.1 Package declaration
+   Source: JLS §7.4
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+package_declaration
+    = annotation* "package" package_name ';'
+    ;
+
+@[since: "1.0"]
+package_name = IDENTIFIER ( '.' IDENTIFIER )* ;
+
+(* ------------------------------------------------------------
+   1.2 Import declarations
+   Source: JLS §7.5
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+import_declaration
+    = "import" [ "static" ] type_name [ '.' '*' ] ';'
+    ;
+
+(* ============================================================
+   2. TYPE DECLARATIONS
+   Source: JLS §8, §9
+   ============================================================ *)
+
+@[since: "1.0"]
+type_declaration
+    = class_declaration
+    | interface_declaration
+    | ';'
+    ;
+
+(* ------------------------------------------------------------
+   2.1 Class declarations
+   Source: JLS §8.1
+
+   Java 16 added record declarations (JEP 395).
+   Java 17 added sealed classes (JEP 409).
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+class_declaration
+    = normal_class_declaration
+    | @[since: "5"]  enum_declaration
+    | @[since: "16"] record_declaration
+    ;
+
+@[since: "1.0"]
+normal_class_declaration
+    = class_modifier* "class" IDENTIFIER
+      @[since: "5"] type_parameters?
+      [ "extends" class_type ]
+      [ "implements" interface_type_list ]
+      @[since: "17"] [ "permits" type_name_list ]
+      class_body
+    ;
+
+@[since: "1.0"]
+class_modifier
+    = annotation
+    | "public"    | "protected"  | "private"
+    | "abstract"  | "static"     | "final"
+    | "strictfp"
+    | @[since: "17"] "sealed"
+    | @[since: "17"] "non-sealed"
+    ;
+
+@[since: "1.0"]
+class_body = '{' class_body_declaration* '}' ;
+
+@[since: "1.0"]
+class_body_declaration
+    = class_member_declaration
+    | instance_initializer
+    | static_initializer
+    | constructor_declaration
+    ;
+
+@[since: "1.0"]
+class_member_declaration
+    = field_declaration
+    | method_declaration
+    | type_declaration
+    ;
+
+(* --- Enum declaration (Java 5) --- *)
+
+@[since: "5"]
+enum_declaration
+    = class_modifier* "enum" IDENTIFIER
+      [ "implements" interface_type_list ]
+      enum_body
+    ;
+
+@[since: "5"]
+enum_body
+    = '{' [ enum_constant_list ] [ ',' ] [ enum_body_declarations ] '}'
+    ;
+
+@[since: "5"]
+enum_constant_list = enum_constant ( ',' enum_constant )* ;
+
+@[since: "5"]
+enum_constant
+    = annotation* IDENTIFIER [ '(' argument_list? ')' ] [ class_body ]
+    ;
+
+@[since: "5"]
+enum_body_declarations = ';' class_body_declaration* ;
+
+(* --- Record declaration (Java 16) --- *)
+
+@[since: "16",
+  description: "Record declarations — JEP 395.
+    Records are restricted classes that model immutable data."]
+record_declaration
+    = class_modifier* "record" IDENTIFIER
+      @[since: "16"] type_parameters?
+      record_header
+      [ "implements" interface_type_list ]
+      record_body
+    ;
+
+@[since: "16"]
+record_header = '(' [ record_component_list ] ')' ;
+
+@[since: "16"]
+record_component_list = record_component ( ',' record_component )* ;
+
+@[since: "16"]
+record_component = annotation* type IDENTIFIER ;
+
+@[since: "16"]
+record_body = '{' record_body_declaration* '}' ;
+
+@[since: "16"]
+record_body_declaration
+    = class_body_declaration
+    | compact_constructor_declaration
+    ;
+
+@[since: "16"]
+compact_constructor_declaration
+    = constructor_modifier* IDENTIFIER constructor_body ;
+
+(* ------------------------------------------------------------
+   2.2 Interface declarations
+   Source: JLS §9.1
+
+   Java 5 added annotation type declarations.
+   Java 17 added sealed interfaces (JEP 409).
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+interface_declaration
+    = normal_interface_declaration
+    | @[since: "5"] annotation_type_declaration
+    ;
+
+@[since: "1.0"]
+normal_interface_declaration
+    = interface_modifier* "interface" IDENTIFIER
+      @[since: "5"] type_parameters?
+      [ "extends" interface_type_list ]
+      @[since: "17"] [ "permits" type_name_list ]
+      interface_body
+    ;
+
+@[since: "1.0"]
+interface_modifier
+    = annotation
+    | "public"    | "protected"  | "private"
+    | "abstract"  | "static"     | "strictfp"
+    | @[since: "17"] "sealed"
+    | @[since: "17"] "non-sealed"
+    ;
+
+@[since: "1.0"]
+interface_body = '{' interface_member_declaration* '}' ;
+
+@[since: "1.0"]
+interface_member_declaration
+    = constant_declaration
+    | interface_method_declaration
+    | type_declaration
+    ;
+
+@[since: "1.0"]
+constant_declaration
+    = constant_modifier* type variable_declarator_list ';'
+    ;
+
+@[since: "1.0"]
+constant_modifier
+    = annotation | "public" | "static" | "final"
+    ;
+
+@[since: "1.0"]
+interface_method_declaration
+    = interface_method_modifier* method_header method_body
+    ;
+
+@[since: "1.0"]
+interface_method_modifier
+    = annotation
+    | "public"    | "private"
+    | "abstract"
+    | @[since: "8"]  "default"
+    | @[since: "8"]  "static"
+    | "strictfp"
+    ;
+
+(* --- Annotation type declaration (Java 5) --- *)
+
+@[since: "5"]
+annotation_type_declaration
+    = interface_modifier* '@' "interface" IDENTIFIER
+      annotation_type_body
+    ;
+
+@[since: "5"]
+annotation_type_body = '{' annotation_type_member_declaration* '}' ;
+
+@[since: "5"]
+annotation_type_member_declaration
+    = annotation_type_element_declaration
+    | constant_declaration
+    | type_declaration
+    | ';'
+    ;
+
+@[since: "5"]
+annotation_type_element_declaration
+    = annotation_type_element_modifier* type IDENTIFIER
+      '(' ')' dims? [ "default" element_value ] ';'
+    ;
+
+@[since: "5"]
+annotation_type_element_modifier = annotation | "public" | "abstract" ;
+
+(* ============================================================
+   3. TYPES
+   Source: JLS §4
+   ============================================================ *)
+
+@[since: "1.0"]
+type
+    = primitive_type
+    | reference_type
+    ;
+
+@[since: "1.0"]
+primitive_type
+    = annotation* numeric_type
+    | annotation* "boolean"
+    ;
+
+@[since: "1.0"]
+numeric_type
+    = integral_type
+    | floating_point_type
+    ;
+
+@[since: "1.0"]
+integral_type = "byte" | "short" | "int" | "long" | "char" ;
+
+@[since: "1.0"]
+floating_point_type = "float" | "double" ;
+
+@[since: "1.0"]
+reference_type
+    = class_or_interface_type
+    | type_variable
+    | array_type
+    ;
+
+@[since: "1.0"]
+class_or_interface_type
+    = class_type
+    | interface_type
+    ;
+
+@[since: "1.0"]
+class_type
+    = annotation* IDENTIFIER @[since: "5"] type_arguments?
+      ( '.' annotation* IDENTIFIER @[since: "5"] type_arguments? )*
+    ;
+
+@[since: "1.0"]
+interface_type = class_type ;
+
+@[since: "1.0"]
+type_variable = annotation* IDENTIFIER ;
+
+@[since: "1.0"]
+array_type = ( primitive_type | class_or_interface_type | type_variable ) dims ;
+
+@[since: "1.0"]
+dims = annotation* '[' ']' ( annotation* '[' ']' )* ;
+
+@[since: "1.0"]
+type_name = IDENTIFIER ( '.' IDENTIFIER )* ;
+
+@[since: "1.0"]
+type_name_list = type_name ( ',' type_name )* ;
+
+@[since: "1.0"]
+interface_type_list = interface_type ( ',' interface_type )* ;
+
+(* ------------------------------------------------------------
+   3.1 Type parameters and arguments (Java 5)
+   Source: JLS §4.4, §4.5
+   ------------------------------------------------------------ *)
+
+@[since: "5"]
+type_parameters = '<' type_parameter_list '>' ;
+
+@[since: "5"]
+type_parameter_list = type_parameter ( ',' type_parameter )* ;
+
+@[since: "5"]
+type_parameter = annotation* IDENTIFIER [ type_bound ] ;
+
+@[since: "5"]
+type_bound
+    = "extends" class_or_interface_type additional_bound*
+    ;
+
+@[since: "5"]
+additional_bound = '&' interface_type ;
+
+@[since: "5"]
+type_arguments = '<' type_argument_list '>' ;
+
+@[since: "5"]
+type_argument_list = type_argument ( ',' type_argument )* ;
+
+@[since: "5"]
+type_argument
+    = reference_type
+    | wildcard
+    ;
+
+@[since: "5"]
+wildcard = annotation* '?' wildcard_bounds? ;
+
+@[since: "5"]
+wildcard_bounds
+    = "extends" reference_type
+    | "super" reference_type
+    ;
+
+(* ============================================================
+   4. FIELD DECLARATIONS
+   Source: JLS §8.3
+   ============================================================ *)
+
+@[since: "1.0"]
+field_declaration
+    = field_modifier* type variable_declarator_list ';'
+    ;
+
+@[since: "1.0"]
+field_modifier
+    = annotation
+    | "public" | "protected" | "private"
+    | "static" | "final" | "transient" | "volatile"
+    ;
+
+@[since: "1.0"]
+variable_declarator_list = variable_declarator ( ',' variable_declarator )* ;
+
+@[since: "1.0"]
+variable_declarator = variable_declarator_id [ '=' variable_initializer ] ;
+
+@[since: "1.0"]
+variable_declarator_id = IDENTIFIER dims? ;
+
+@[since: "1.0"]
+variable_initializer
+    = expression
+    | array_initializer
+    ;
+
+@[since: "1.0"]
+array_initializer = '{' [ variable_initializer_list [ ',' ] ] '}' ;
+
+@[since: "1.0"]
+variable_initializer_list = variable_initializer ( ',' variable_initializer )* ;
+
+(* ============================================================
+   5. METHOD DECLARATIONS
+   Source: JLS §8.4
+   ============================================================ *)
+
+@[since: "1.0"]
+method_declaration = method_modifier* method_header method_body ;
+
+@[since: "1.0"]
+method_modifier
+    = annotation
+    | "public" | "protected" | "private"
+    | "abstract" | "static" | "final"
+    | "synchronized" | "native" | "strictfp"
+    | @[since: "8"] "default"
+    ;
+
+@[since: "1.0"]
+method_header
+    = @[since: "5"] type_parameters? annotation* result
+      method_declarator [ "throws" exception_type_list ]
+    ;
+
+@[since: "1.0"]
+result = type | "void" ;
+
+@[since: "1.0"]
+method_declarator = IDENTIFIER '(' [ receiver_parameter ',' ] formal_parameter_list? ')' dims? ;
+
+@[since: "8"]
+receiver_parameter = annotation* type [ IDENTIFIER '.' ] "this" ;
+
+@[since: "1.0"]
+formal_parameter_list = formal_parameter ( ',' formal_parameter )* ;
+
+@[since: "1.0"]
+formal_parameter
+    = variable_modifier* type variable_declarator_id
+    | variable_modifier* type annotation* "..." variable_declarator_id
+    ;
+
+@[since: "1.0"]
+variable_modifier = annotation | "final" ;
+
+@[since: "1.0"]
+exception_type_list = exception_type ( ',' exception_type )* ;
+
+@[since: "1.0"]
+exception_type = class_type | type_variable ;
+
+@[since: "1.0"]
+method_body = block | ';' ;
+
+(* ============================================================
+   6. CONSTRUCTOR DECLARATIONS
+   Source: JLS §8.8
+   ============================================================ *)
+
+@[since: "1.0"]
+constructor_declaration
+    = constructor_modifier* constructor_declarator
+      [ "throws" exception_type_list ] constructor_body
+    ;
+
+@[since: "1.0"]
+constructor_modifier
+    = annotation | "public" | "protected" | "private"
+    ;
+
+@[since: "1.0"]
+constructor_declarator
+    = @[since: "5"] type_parameters? IDENTIFIER
+      '(' [ receiver_parameter ',' ] formal_parameter_list? ')'
+    ;
+
+@[since: "1.0"]
+constructor_body
+    = '{' [ explicit_constructor_invocation ] block_statements? '}'
+    ;
+
+@[since: "1.0"]
+explicit_constructor_invocation
+    = @[since: "5"] type_arguments? "this" '(' argument_list? ')' ';'
+    | @[since: "5"] type_arguments? "super" '(' argument_list? ')' ';'
+    | expression_name '.' @[since: "5"] type_arguments? "super" '(' argument_list? ')' ';'
+    | primary '.' @[since: "5"] type_arguments? "super" '(' argument_list? ')' ';'
+    ;
+
+(* ============================================================
+   7. INITIALIZERS
+   Source: JLS §8.6, §8.7
+   ============================================================ *)
+
+@[since: "1.0"]
+instance_initializer = block ;
+
+@[since: "1.0"]
+static_initializer = "static" block ;
+
+(* ============================================================
+   8. EXPRESSIONS
+   Source: JLS §15
+   ============================================================ *)
+
+(* ------------------------------------------------------------
+   8.1 Expression hierarchy (precedence encoded in structure)
+   Source: JLS §15.2
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+expression
+    = @[since: "8"] lambda_expression
+    | assignment_expression
+    ;
+
+@[since: "1.0"]
+assignment_expression
+    = conditional_expression
+    | assignment
+    ;
+
+@[since: "1.0"]
+assignment = left_hand_side assignment_operator expression ;
+
+@[since: "1.0"]
+left_hand_side
+    = expression_name
+    | field_access
+    | array_access
+    ;
+
+@[since: "1.0"]
+assignment_operator
+    = '='  | "+=" | "-=" | "*=" | "/=" | "%="
+    | "&=" | "|=" | "^=" | "<<=" | ">>=" | ">>>="
+    ;
+
+(* ------------------------------------------------------------
+   8.2 Conditional (ternary) expression
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+conditional_expression
+    = conditional_or_expression
+      [ '?' expression ':' ( conditional_expression | @[since: "8"] lambda_expression ) ]
+    ;
+
+(* ------------------------------------------------------------
+   8.3 Binary operators — precedence hierarchy
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+conditional_or_expression
+    = conditional_and_expression ( "||" conditional_and_expression )* ;
+
+@[since: "1.0"]
+conditional_and_expression
+    = inclusive_or_expression ( "&&" inclusive_or_expression )* ;
+
+@[since: "1.0"]
+inclusive_or_expression
+    = exclusive_or_expression ( '|' exclusive_or_expression )* ;
+
+@[since: "1.0"]
+exclusive_or_expression
+    = and_expression ( '^' and_expression )* ;
+
+@[since: "1.0"]
+and_expression
+    = equality_expression ( '&' equality_expression )* ;
+
+@[since: "1.0"]
+equality_expression
+    = relational_expression ( ( "==" | "!=" ) relational_expression )* ;
+
+@[since: "1.0"]
+relational_expression
+    = shift_expression
+      ( ( '<' | '>' | "<=" | ">=" ) shift_expression
+      | "instanceof" ( reference_type | @[since: "16"] pattern )
+      )*
+    ;
+
+@[since: "1.0",
+  description: "Shift operators. Note: >> in generics context is two >
+    tokens, not a single >> operator. This disambiguation is
+    context-sensitive."]
+shift_expression
+    = additive_expression ( ( "<<" | ">>" | ">>>" ) additive_expression )* ;
+
+@[since: "1.0"]
+additive_expression
+    = multiplicative_expression ( ( '+' | '-' ) multiplicative_expression )* ;
+
+@[since: "1.0"]
+multiplicative_expression
+    = unary_expression ( ( '*' | '/' | '%' ) unary_expression )* ;
+
+(* ------------------------------------------------------------
+   8.4 Unary expressions
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+unary_expression
+    = "++" unary_expression
+    | "--" unary_expression
+    | '+' unary_expression
+    | '-' unary_expression
+    | unary_expression_not_plus_minus
+    ;
+
+@[since: "1.0"]
+unary_expression_not_plus_minus
+    = postfix_expression
+    | '~' unary_expression
+    | '!' unary_expression
+    | cast_expression
+    | @[since: "14"] switch_expression
+    ;
+
+@[since: "1.0"]
+postfix_expression
+    = primary ( "++" | "--" )*
+    | expression_name ( "++" | "--" )*
+    ;
+
+@[since: "1.0",
+  description: "Cast expression. Disambiguating (Type)expr from
+    (expr) is context-sensitive in Java."]
+cast_expression
+    = '(' primitive_type ')' unary_expression
+    | '(' reference_type additional_bound* ')' unary_expression_not_plus_minus
+    | '(' reference_type additional_bound* ')' lambda_expression
+    ;
+
+(* ------------------------------------------------------------
+   8.5 Lambda expressions (Java 8)
+   Source: JLS §15.27, JEP 126
+   ------------------------------------------------------------ *)
+
+@[since: "8",
+  description: "Lambda expressions — JEP 126"]
+lambda_expression = lambda_parameters "->" lambda_body ;
+
+@[since: "8"]
+lambda_parameters
+    = '(' [ lambda_parameter_list ] ')'
+    | IDENTIFIER
+    ;
+
+@[since: "8"]
+lambda_parameter_list
+    = lambda_parameter ( ',' lambda_parameter )*
+    | IDENTIFIER ( ',' IDENTIFIER )*
+    ;
+
+@[since: "8"]
+lambda_parameter
+    = variable_modifier* lambda_parameter_type variable_declarator_id
+    | variable_modifier* "var" variable_declarator_id
+    ;
+
+@[since: "8"]
+lambda_parameter_type = type | "var" ;
+
+@[since: "8"]
+lambda_body = expression | block ;
+
+(* ------------------------------------------------------------
+   8.6 Switch expression (Java 14)
+   Source: JLS §15.28, JEP 361
+   ------------------------------------------------------------ *)
+
+@[since: "14",
+  description: "Switch expressions — JEP 361.
+    Switch as an expression that yields a value."]
+switch_expression = "switch" '(' expression ')' switch_block ;
+
+(* ------------------------------------------------------------
+   8.7 Primary expressions
+   Source: JLS §15.8 – §15.13
+   ------------------------------------------------------------ *)
+
+@[since: "1.0"]
+primary
+    = primary_no_new_array
+    | array_creation_expression
+    ;
+
+@[since: "1.0"]
+primary_no_new_array
+    = literal
+    | class_literal
+    | "this"
+    | type_name '.' "this"
+    | '(' expression ')'
+    | class_instance_creation_expression
+    | field_access
+    | array_access
+    | method_invocation
+    | @[since: "8"] method_reference
+    ;
+
+@[since: "1.0"]
+class_literal
+    = type_name ( '[' ']' )* '.' "class"
+    | numeric_type ( '[' ']' )* '.' "class"
+    | "boolean" ( '[' ']' )* '.' "class"
+    | "void" '.' "class"
+    ;
+
+@[since: "1.0"]
+class_instance_creation_expression
+    = unqualified_class_instance_creation_expression
+    | expression_name '.' unqualified_class_instance_creation_expression
+    | primary '.' unqualified_class_instance_creation_expression
+    ;
+
+@[since: "1.0"]
+unqualified_class_instance_creation_expression
+    = "new" @[since: "5"] type_arguments? class_or_interface_type_to_instantiate
+      '(' argument_list? ')' class_body?
+    ;
+
+@[since: "1.0"]
+class_or_interface_type_to_instantiate
+    = annotation* IDENTIFIER ( '.' annotation* IDENTIFIER )*
+      @[since: "7"] type_arguments_or_diamond?
+    ;
+
+@[since: "7",
+  description: "Diamond operator <> — JEP 204"]
+type_arguments_or_diamond
+    = type_arguments
+    | "<>"
+    ;
+
+@[since: "1.0"]
+field_access
+    = primary '.' IDENTIFIER
+    | "super" '.' IDENTIFIER
+    | type_name '.' "super" '.' IDENTIFIER
+    ;
+
+@[since: "1.0"]
+array_access
+    = expression_name '[' expression ']'
+    | primary_no_new_array '[' expression ']'
+    ;
+
+@[since: "1.0"]
+method_invocation
+    = IDENTIFIER '(' argument_list? ')'
+    | type_name '.' @[since: "5"] type_arguments? IDENTIFIER '(' argument_list? ')'
+    | expression_name '.' @[since: "5"] type_arguments? IDENTIFIER '(' argument_list? ')'
+    | primary '.' @[since: "5"] type_arguments? IDENTIFIER '(' argument_list? ')'
+    | "super" '.' @[since: "5"] type_arguments? IDENTIFIER '(' argument_list? ')'
+    | type_name '.' "super" '.' @[since: "5"] type_arguments? IDENTIFIER '(' argument_list? ')'
+    ;
+
+@[since: "8",
+  description: "Method references — JEP 126"]
+method_reference
+    = expression_name "::" @[since: "5"] type_arguments? IDENTIFIER
+    | primary "::" @[since: "5"] type_arguments? IDENTIFIER
+    | reference_type "::" @[since: "5"] type_arguments? IDENTIFIER
+    | "super" "::" @[since: "5"] type_arguments? IDENTIFIER
+    | type_name '.' "super" "::" @[since: "5"] type_arguments? IDENTIFIER
+    | class_type "::" @[since: "5"] type_arguments? "new"
+    | array_type "::" "new"
+    ;
+
+@[since: "1.0"]
+array_creation_expression
+    = "new" primitive_type dim_exprs dims?
+    | "new" class_or_interface_type dim_exprs dims?
+    | "new" primitive_type dims array_initializer
+    | "new" class_or_interface_type dims array_initializer
+    ;
+
+@[since: "1.0"]
+dim_exprs = dim_expr+ ;
+
+@[since: "1.0"]
+dim_expr = annotation* '[' expression ']' ;
+
+@[since: "1.0"]
+argument_list = expression ( ',' expression )* ;
+
+@[since: "1.0"]
+expression_name = IDENTIFIER ( '.' IDENTIFIER )* ;
+
+(* ============================================================
+   9. PATTERNS (Java 16+)
+   Source: JLS §14.30
+
+   Java 16: Type patterns in instanceof (JEP 394)
+   Java 21: Record patterns (JEP 440), guarded patterns
+   ============================================================ *)
+
+@[since: "16",
+  description: "Pattern matching — JEP 394 (instanceof), JEP 440 (records), JEP 441 (switch)"]
+pattern
+    = type_pattern
+    | @[since: "21"] record_pattern
+    | @[since: "21"] guarded_pattern
+    ;
+
+@[since: "16"]
+type_pattern = variable_modifier* type IDENTIFIER ;
+
+@[since: "21",
+  description: "Record patterns — JEP 440. Destructure records in patterns."]
+record_pattern
+    = reference_type '(' [ pattern_list ] ')'
+    ;
+
+@[since: "21"]
+pattern_list = pattern ( ',' pattern )* ;
+
+@[since: "21",
+  description: "Guarded pattern — pattern with when clause"]
+guarded_pattern = pattern "when" expression ;
+
+(* ============================================================
+   10. STATEMENTS
+   Source: JLS §14
+   ============================================================ *)
+
+@[since: "1.0"]
+block = '{' block_statements? '}' ;
+
+@[since: "1.0"]
+block_statements = block_statement+ ;
+
+@[since: "1.0"]
+block_statement
+    = local_class_or_interface_declaration
+    | local_variable_declaration_statement
+    | statement
+    ;
+
+@[since: "1.0"]
+local_variable_declaration_statement
+    = local_variable_declaration ';' ;
+
+@[since: "1.0"]
+local_variable_declaration
+    = variable_modifier* local_variable_type variable_declarator_list
+    ;
+
+@[since: "1.0"]
+local_variable_type
+    = type
+    | @[since: "10"] "var"
+    ;
+
+@[since: "1.0"]
+local_class_or_interface_declaration
+    = class_declaration
+    | normal_interface_declaration
+    ;
+
+@[since: "1.0"]
+statement
+    = statement_without_trailing_substatement
+    | labeled_statement
+    | if_then_statement
+    | if_then_else_statement
+    | while_statement
+    | for_statement
+    ;
+
+@[since: "1.0"]
+statement_without_trailing_substatement
+    = block
+    | empty_statement
+    | expression_statement
+    | assert_statement
+    | switch_statement
+    | do_statement
+    | break_statement
+    | continue_statement
+    | return_statement
+    | synchronized_statement
+    | throw_statement
+    | try_statement
+    | @[since: "14"] yield_statement
+    ;
+
+@[since: "1.0"]
+statement_no_short_if
+    = statement_without_trailing_substatement
+    | labeled_statement_no_short_if
+    | if_then_else_statement_no_short_if
+    | while_statement_no_short_if
+    | for_statement_no_short_if
+    ;
+
+(* --- Empty statement --- *)
+@[since: "1.0"]
+empty_statement = ';' ;
+
+(* --- Labeled statement --- *)
+@[since: "1.0"]
+labeled_statement = IDENTIFIER ':' statement ;
+
+@[since: "1.0"]
+labeled_statement_no_short_if = IDENTIFIER ':' statement_no_short_if ;
+
+(* --- Expression statement --- *)
+@[since: "1.0"]
+expression_statement = statement_expression ';' ;
+
+@[since: "1.0"]
+statement_expression
+    = assignment
+    | "++" unary_expression
+    | "--" unary_expression
+    | postfix_expression "++"
+    | postfix_expression "--"
+    | method_invocation
+    | class_instance_creation_expression
+    ;
+
+(* --- If statement --- *)
+@[since: "1.0"]
+if_then_statement = "if" '(' expression ')' statement ;
+
+@[since: "1.0"]
+if_then_else_statement = "if" '(' expression ')' statement_no_short_if "else" statement ;
+
+@[since: "1.0"]
+if_then_else_statement_no_short_if
+    = "if" '(' expression ')' statement_no_short_if "else" statement_no_short_if ;
+
+(* --- Assert statement --- *)
+@[since: "1.4"]
+assert_statement
+    = "assert" expression ';'
+    | "assert" expression ':' expression ';'
+    ;
+
+(* --- Switch statement --- *)
+@[since: "1.0"]
+switch_statement = "switch" '(' expression ')' switch_block ;
+
+@[since: "1.0"]
+switch_block
+    = '{' switch_rule* '}'
+    | '{' switch_block_statement_group* switch_label* '}'
+    ;
+
+@[since: "14",
+  description: "Switch rule — arrow form (JEP 361)"]
+switch_rule
+    = switch_label "->" expression ';'
+    | switch_label "->" block
+    | switch_label "->" throw_statement
+    ;
+
+@[since: "1.0"]
+switch_block_statement_group = switch_label+ block_statements ;
+
+@[since: "1.0"]
+switch_label
+    = "case" case_constant_list ':'
+    | "default" ':'
+    | @[since: "21"] "case" "null" [ ',' "default" ] ':'
+    | @[since: "21"] "case" pattern [ "when" expression ] ':'
+    ;
+
+@[since: "1.0"]
+case_constant_list = case_constant ( ',' case_constant )* ;
+
+@[since: "1.0"]
+case_constant = conditional_expression ;
+
+(* --- While and Do-While --- *)
+@[since: "1.0"]
+while_statement = "while" '(' expression ')' statement ;
+
+@[since: "1.0"]
+while_statement_no_short_if = "while" '(' expression ')' statement_no_short_if ;
+
+@[since: "1.0"]
+do_statement = "do" statement "while" '(' expression ')' ';' ;
+
+(* --- For statement --- *)
+@[since: "1.0"]
+for_statement
+    = basic_for_statement
+    | @[since: "5"] enhanced_for_statement
+    ;
+
+@[since: "1.0"]
+for_statement_no_short_if
+    = basic_for_statement_no_short_if
+    | @[since: "5"] enhanced_for_statement_no_short_if
+    ;
+
+@[since: "1.0"]
+basic_for_statement
+    = "for" '(' [ for_init ] ';' [ expression ] ';' [ for_update ] ')' statement
+    ;
+
+@[since: "1.0"]
+basic_for_statement_no_short_if
+    = "for" '(' [ for_init ] ';' [ expression ] ';' [ for_update ] ')' statement_no_short_if
+    ;
+
+@[since: "1.0"]
+for_init = statement_expression_list | local_variable_declaration ;
+
+@[since: "1.0"]
+for_update = statement_expression_list ;
+
+@[since: "1.0"]
+statement_expression_list = statement_expression ( ',' statement_expression )* ;
+
+@[since: "5",
+  description: "Enhanced for statement (for-each) — Java 5"]
+enhanced_for_statement
+    = "for" '(' variable_modifier* local_variable_type variable_declarator_id
+      ':' expression ')' statement
+    ;
+
+@[since: "5"]
+enhanced_for_statement_no_short_if
+    = "for" '(' variable_modifier* local_variable_type variable_declarator_id
+      ':' expression ')' statement_no_short_if
+    ;
+
+(* --- Break and Continue --- *)
+@[since: "1.0"]
+break_statement = "break" IDENTIFIER? ';' ;
+
+@[since: "1.0"]
+continue_statement = "continue" IDENTIFIER? ';' ;
+
+(* --- Return --- *)
+@[since: "1.0"]
+return_statement = "return" expression? ';' ;
+
+(* --- Throw --- *)
+@[since: "1.0"]
+throw_statement = "throw" expression ';' ;
+
+(* --- Yield (Java 14) --- *)
+@[since: "14",
+  description: "Yield statement — yields value from switch expression.
+    yield is a restricted identifier (JEP 361)."]
+yield_statement = "yield" expression ';' ;
+
+(* --- Synchronized --- *)
+@[since: "1.0"]
+synchronized_statement = "synchronized" '(' expression ')' block ;
+
+(* --- Try statement --- *)
+@[since: "1.0"]
+try_statement
+    = "try" block catches
+    | "try" block catches? finally_block
+    | @[since: "7"] try_with_resources_statement
+    ;
+
+@[since: "1.0"]
+catches = catch_clause+ ;
+
+@[since: "1.0"]
+catch_clause
+    = "catch" '(' catch_formal_parameter ')' block
+    ;
+
+@[since: "1.0"]
+catch_formal_parameter
+    = variable_modifier* catch_type variable_declarator_id
+    ;
+
+@[since: "1.0"]
+catch_type = class_type ( @[since: "7"] '|' class_type )* ;
+
+@[since: "1.0"]
+finally_block = "finally" block ;
+
+@[since: "7",
+  description: "Try-with-resources — JEP (pre-JEP system).
+    Automatic resource management."]
+try_with_resources_statement
+    = "try" resource_specification block catches? finally_block?
+    ;
+
+@[since: "7"]
+resource_specification = '(' resource_list [ ';' ] ')' ;
+
+@[since: "7"]
+resource_list = resource ( ';' resource )* ;
+
+@[since: "7"]
+resource
+    = variable_modifier* local_variable_type IDENTIFIER '=' expression
+    | @[since: "9"] variable_access
+    ;
+
+@[since: "9"]
+variable_access = expression_name | field_access ;
+
+(* ============================================================
+   11. ANNOTATIONS
+   Source: JLS §9.7
+   ============================================================ *)
+
+@[since: "5"]
+annotation
+    = normal_annotation
+    | marker_annotation
+    | single_element_annotation
+    ;
+
+@[since: "5"]
+normal_annotation = '@' type_name '(' [ element_value_pair_list ] ')' ;
+
+@[since: "5"]
+element_value_pair_list = element_value_pair ( ',' element_value_pair )* ;
+
+@[since: "5"]
+element_value_pair = IDENTIFIER '=' element_value ;
+
+@[since: "5"]
+element_value
+    = conditional_expression
+    | element_value_array_initializer
+    | annotation
+    ;
+
+@[since: "5"]
+element_value_array_initializer
+    = '{' [ element_value_list [ ',' ] ] '}'
+    ;
+
+@[since: "5"]
+element_value_list = element_value ( ',' element_value )* ;
+
+@[since: "5"]
+marker_annotation = '@' type_name ;
+
+@[since: "5"]
+single_element_annotation = '@' type_name '(' element_value ')' ;
+
+(* ============================================================
+   12. MODULE DECLARATIONS (Java 9)
+   Source: JLS §7.7, JEP 261
+   ============================================================ *)
+
+@[since: "9",
+  description: "Module declarations — JEP 261.
+    Module-related keywords (open, module, requires, etc.) are
+    restricted identifiers that only have keyword semantics
+    inside module declarations."]
+module_declaration
+    = annotation* [ "open" ] "module" module_name '{' module_directive* '}'
+    ;
+
+@[since: "9"]
+module_name = IDENTIFIER ( '.' IDENTIFIER )* ;
+
+@[since: "9"]
+module_directive
+    = "requires" requires_modifier* module_name ';'
+    | "exports" package_name [ "to" module_name_list ] ';'
+    | "opens" package_name [ "to" module_name_list ] ';'
+    | "uses" type_name ';'
+    | "provides" type_name "with" type_name_list ';'
+    ;
+
+@[since: "9"]
+requires_modifier = "transitive" | "static" ;
+
+@[since: "9"]
+module_name_list = module_name ( ',' module_name )* ;
+
+(* ============================================================
+   13. VERSION HISTORY — SYNTACTIC ADDITIONS BY JAVA VERSION
+
+   This section is non-normative. It summarizes the syntactic
+   changes across Java versions to support grammar diffing.
+
+   Java 1.0 – 4: Base Java syntactic grammar.
+       Classes, interfaces, methods, fields, constructors,
+       all statement forms, expression hierarchy, packages,
+       imports.
+
+   Java 5: (Sep 2004)
+       - Generics (type parameters, type arguments, wildcards)
+       - Enhanced for (for-each) loop
+       - Enum declarations
+       - Annotations and annotation type declarations
+       - Varargs (variable arity methods)
+       - Static imports
+       Source: JLS SE 5
+
+   Java 7: (Jul 2011)
+       - Try-with-resources statement
+       - Multi-catch (catch with |)
+       - Diamond operator (<>) for type inference
+       Source: JLS SE 7
+
+   Java 8: (Mar 2014)
+       - Lambda expressions (-> operator)
+       - Method references (:: operator)
+       - Default methods in interfaces
+       - Static methods in interfaces
+       - Receiver parameter (Type.this)
+       - Functional interface annotation (@FunctionalInterface)
+       Source: JLS SE 8, JEP 126
+
+   Java 9: (Sep 2017)
+       - Module declarations (module-info.java)
+       - Private methods in interfaces
+       - Effectively final variables in try-with-resources
+       Source: JLS SE 9, JEP 261
+
+   Java 10: (Mar 2018)
+       - Local variable type inference (var)
+       Source: JLS SE 10, JEP 286
+
+   Java 11: (Sep 2018)
+       - var in lambda parameters
+       Source: JLS SE 11, JEP 323
+
+   Java 14: (Mar 2020)
+       - Switch expressions (yield, arrow form)
+       Source: JLS SE 14, JEP 361
+
+   Java 15: (Sep 2020)
+       - No syntactic changes
+       (Text blocks are lexical — see lexical grammar)
+
+   Java 16: (Mar 2021)
+       - Record declarations
+       - Pattern matching for instanceof (type patterns)
+       Source: JLS SE 16, JEP 394, JEP 395
+
+   Java 17: (Sep 2021)
+       - Sealed classes and interfaces (sealed, non-sealed, permits)
+       Source: JLS SE 17, JEP 409
+
+   Java 21: (Sep 2023)
+       - Record patterns in instanceof and switch
+       - Pattern matching for switch (with guarded patterns, when)
+       - Case null in switch labels
+       Source: JLS SE 21, JEP 440, JEP 441
+   ============================================================ *)

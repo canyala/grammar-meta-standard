@@ -1,0 +1,615 @@
+(* ============================================================
+   JavaScript (ECMAScript) ES2024 Lexical Grammar
+   XEBNF Specification
+
+   Source: ECMA-262, 15th Edition (ES2024)
+     https://tc39.es/ecma262/
+     Annex A — Grammar Summary (lexical grammar)
+   Cross-referenced with:
+     - TC39 proposal documents (ES2015 through ES2024)
+     - MDN JavaScript reference
+
+   Conformance: Level 1 (Partial)
+   Known gaps documented inline.
+   ============================================================ *)
+
+@grammar {
+    name: "JavaScript" ;
+    version: "ES2024" ;
+    family: "ecmascript" ;
+    spec: "ECMA-262, 15th Edition" ;
+    uri: "https://tc39.es/ecma262/" ;
+    conformance: 1 ;
+    conformance_notes: "Lexical grammar covers tokens, literals, keywords,
+        operators, and punctuators. Automatic semicolon insertion
+        is context-sensitive and documented via predicates.
+        The regex vs division ambiguity requires parser feedback
+        to the lexer. Template literal expression interpolation
+        requires lexer mode switching. [no LineTerminator here]
+        restrictions are annotated but not enforced." ;
+}
+
+@predicates {
+    regex_context: "Previous token allows a regex literal (not division).
+        The lexer must receive parser feedback to distinguish
+        /regex/ from division operator /." ;
+    template_context: "Currently lexing inside a template literal
+        expression interpolation (${}). Requires mode switching." ;
+    strict_mode: "Current code is in strict mode (affects reserved words)" ;
+    no_line_terminator: "[no LineTerminator here] — context-sensitive
+        restriction on newlines between tokens" ;
+}
+
+(* ============================================================
+   1. SOURCE TEXT
+   Source: ECMA-262 §11.1
+
+   ECMAScript source text is a sequence of Unicode code points.
+   ============================================================ *)
+
+@[since: "ES2015", category: "lexical"]
+source_character = ? any Unicode code point ? ;
+
+(* ============================================================
+   2. LINE TERMINATORS
+   Source: ECMA-262 §12.3
+   ============================================================ *)
+
+@[since: "ES2015", category: "lexical"]
+LINE_TERMINATOR
+    = '\u{000A}'    (* LF — Line Feed *)
+    | '\u{000D}'    (* CR — Carriage Return *)
+    | '\u{2028}'    (* LS — Line Separator *)
+    | '\u{2029}'    (* PS — Paragraph Separator *)
+    ;
+
+@[since: "ES2015", category: "lexical"]
+LINE_TERMINATOR_SEQUENCE
+    = '\u{000A}'                    (* LF *)
+    | '\u{000D}' (?! '\u{000A}')   (* CR not followed by LF *)
+    | '\u{000D}' '\u{000A}'        (* CR LF *)
+    | '\u{2028}'                    (* LS *)
+    | '\u{2029}'                    (* PS *)
+    ;
+
+(* ============================================================
+   3. WHITESPACE
+   Source: ECMA-262 §12.2
+   ============================================================ *)
+
+@[since: "ES2015", category: "lexical"]
+WHITESPACE
+    = '\u{0009}'    (* TAB *)
+    | '\u{000B}'    (* VT — Vertical Tab *)
+    | '\u{000C}'    (* FF — Form Feed *)
+    | '\u{FEFF}'    (* ZWNBSP — BOM / Zero Width No-Break Space *)
+    | \p{Zs}        (* Any Unicode space separator *)
+    ;
+
+(* ============================================================
+   4. COMMENTS
+   Source: ECMA-262 §12.4
+   ============================================================ *)
+
+@[since: "ES2015", category: "lexical"]
+COMMENT
+    = MULTI_LINE_COMMENT
+    | SINGLE_LINE_COMMENT
+    | @[since: "ES2015"] HASHBANG_COMMENT
+    ;
+
+@[category: "fragment"]
+SINGLE_LINE_COMMENT = "//" ~LINE_TERMINATOR* ;
+
+@[category: "fragment"]
+MULTI_LINE_COMMENT = "/*" ( ~'*' | '*' (?! '/') )* "*/" ;
+
+@[since: "ES2015", category: "fragment",
+  description: "Hashbang comment — only valid at very start of source text.
+    Enables #!/usr/bin/env node shebang lines."]
+HASHBANG_COMMENT = "#!" ~LINE_TERMINATOR* ;
+
+(* ============================================================
+   5. TOKENS
+   Source: ECMA-262 §12.5
+   ============================================================ *)
+
+@[since: "ES2015", category: "lexical"]
+token
+    = IDENTIFIER_NAME
+    | PUNCTUATOR
+    | NUMERIC_LITERAL
+    | STRING_LITERAL
+    | TEMPLATE
+    | @[since: "ES2015"] REGULAR_EXPRESSION_LITERAL
+    | @[since: "ES2020"] PRIVATE_IDENTIFIER
+    ;
+
+(* ============================================================
+   6. IDENTIFIERS
+   Source: ECMA-262 §12.6
+
+   ECMAScript identifiers use Unicode ID_Start/ID_Continue.
+   ============================================================ *)
+
+@[since: "ES2015", category: "lexical"]
+IDENTIFIER_NAME = IDENTIFIER_START IDENTIFIER_PART* ;
+
+@[category: "fragment",
+  description: "Unicode ID_Start, plus $ and _, plus Unicode escape sequences"]
+IDENTIFIER_START
+    = \p{L}         (* Unicode letter *)
+    | \p{Nl}        (* Unicode letter number *)
+    | '$'
+    | '_'
+    | UNICODE_ESCAPE_SEQUENCE   (* if resolves to ID_Start *)
+    ;
+
+@[category: "fragment",
+  description: "Unicode ID_Continue, plus $ and ZWNJ/ZWJ"]
+IDENTIFIER_PART
+    = IDENTIFIER_START
+    | \p{Mn}        (* non-spacing mark *)
+    | \p{Mc}        (* spacing combining mark *)
+    | \p{Nd}        (* decimal digit *)
+    | \p{Pc}        (* connector punctuation *)
+    | '\u{200C}'    (* ZWNJ *)
+    | '\u{200D}'    (* ZWJ *)
+    | UNICODE_ESCAPE_SEQUENCE   (* if resolves to ID_Continue *)
+    ;
+
+@[since: "ES2020", category: "lexical",
+  description: "Private identifiers — class private members. ES2020 class fields."]
+PRIVATE_IDENTIFIER = '#' IDENTIFIER_NAME ;
+
+@[since: "ES2015", category: "fragment"]
+UNICODE_ESCAPE_SEQUENCE
+    = "\\u" HEX_4_DIGITS
+    | "\\u{" CODE_POINT '}'
+    ;
+
+@[category: "fragment"]
+HEX_4_DIGITS = HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT ;
+
+@[category: "fragment"]
+CODE_POINT = HEX_DIGIT+ ;
+    (* Must be ≤ 0x10FFFF *)
+
+(* ============================================================
+   7. KEYWORDS AND RESERVED WORDS
+   Source: ECMA-262 §12.6.2
+
+   ECMAScript keywords are a subset of identifier names
+   that have syntactic meaning.
+   ============================================================ *)
+
+@[since: "ES2015", category: "lexical"]
+keyword
+    = "await"       | "break"       | "case"        | "catch"
+    | "class"       | "const"       | "continue"    | "debugger"
+    | "default"     | "delete"      | "do"          | "else"
+    | "enum"        | "export"      | "extends"     | "false"
+    | "finally"     | "for"         | "function"    | "if"
+    | "import"      | "in"          | "instanceof"  | "new"
+    | "null"        | "return"      | "super"       | "switch"
+    | "this"        | "throw"       | "true"        | "try"
+    | "typeof"      | "var"         | "void"        | "while"
+    | "with"        | "yield"
+    ;
+
+(* Note: "enum" is reserved but not used in any edition.
+   "await" and "yield" are only keywords in specific contexts:
+   await in async functions/modules, yield in generators. *)
+
+(* ------------------------------------------------------------
+   Strict mode reserved words
+   Source: ECMA-262 §12.6.2.2
+
+   These are reserved only in strict mode code.
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015", category: "lexical",
+  description: "Additional reserved words in strict mode"]
+strict_mode_reserved_word
+    = "implements" | "interface" | "let"
+    | "package"    | "private"   | "protected"
+    | "public"     | "static"    | "yield"
+    ;
+
+(* ------------------------------------------------------------
+   Contextual keywords
+
+   These identifiers have special meaning in certain contexts
+   but are not reserved words.
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015", category: "lexical",
+  description: "Contextual keywords — identifiers with special meaning in specific positions.
+    The lexer emits them as identifiers; the parser resolves context."]
+contextual_keyword
+    = @[since: "ES2015"] "as"
+    | @[since: "ES2017"] "async"
+    | @[since: "ES2015"] "from"
+    | @[since: "ES2015"] "get"
+    | @[since: "ES2015"] "let"
+    | @[since: "ES2015"] "of"
+    | @[since: "ES2015"] "set"
+    | @[since: "ES2015"] "static"
+    | @[since: "ES2015"] "target"
+    | @[since: "ES2020"] "meta"
+    | @[since: "ES2022"] "accessor"
+    ;
+
+(* ============================================================
+   8. LITERALS
+   Source: ECMA-262 §12.9
+   ============================================================ *)
+
+(* ------------------------------------------------------------
+   8.1 Numeric literals
+   Source: ECMA-262 §12.9.3
+
+   ES2015: binary (0b) and octal (0o) literals
+   ES2020: BigInt literals (suffix n)
+   ES2021: numeric separators (_)
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015", category: "lexical"]
+NUMERIC_LITERAL
+    = DECIMAL_LITERAL
+    | @[since: "ES2015"] DECIMAL_BIGINT_LITERAL
+    | @[since: "ES2015"] NON_DECIMAL_INTEGER_LITERAL @[since: "ES2020"] BIGINT_SUFFIX?
+    ;
+
+@[category: "fragment"]
+DECIMAL_LITERAL
+    = DECIMAL_INTEGER_LITERAL '.' DECIMAL_DIGITS? EXPONENT_PART?
+    | '.' DECIMAL_DIGITS EXPONENT_PART?
+    | DECIMAL_INTEGER_LITERAL EXPONENT_PART?
+    ;
+
+@[category: "fragment"]
+DECIMAL_INTEGER_LITERAL
+    = '0'
+    | NON_ZERO_DIGIT DECIMAL_DIGITS?
+    | NON_ZERO_DIGIT @[since: "ES2021"] ( '_' DECIMAL_DIGITS )?
+    ;
+
+@[category: "fragment"]
+DECIMAL_DIGITS = DECIMAL_DIGIT ( @[since: "ES2021"] '_'? DECIMAL_DIGIT )* ;
+
+@[category: "fragment"]
+DECIMAL_DIGIT = '0'..'9' ;
+
+@[category: "fragment"]
+NON_ZERO_DIGIT = '1'..'9' ;
+
+@[category: "fragment"]
+EXPONENT_PART = ( 'e' | 'E' ) ( '+' | '-' )? DECIMAL_DIGITS ;
+
+@[since: "ES2020", category: "fragment",
+  description: "BigInt literal — decimal form. ES2020."]
+DECIMAL_BIGINT_LITERAL = NON_ZERO_DIGIT DECIMAL_DIGITS? 'n' | '0' 'n' ;
+
+@[category: "fragment"]
+NON_DECIMAL_INTEGER_LITERAL
+    = BINARY_INTEGER_LITERAL
+    | OCTAL_INTEGER_LITERAL
+    | HEX_INTEGER_LITERAL
+    ;
+
+@[since: "ES2015", category: "fragment"]
+BINARY_INTEGER_LITERAL = '0' ( 'b' | 'B' ) BINARY_DIGITS ;
+
+@[category: "fragment"]
+BINARY_DIGITS = BINARY_DIGIT ( @[since: "ES2021"] '_'? BINARY_DIGIT )* ;
+
+@[category: "fragment"]
+BINARY_DIGIT = '0' | '1' ;
+
+@[since: "ES2015", category: "fragment"]
+OCTAL_INTEGER_LITERAL = '0' ( 'o' | 'O' ) OCTAL_DIGITS ;
+
+@[category: "fragment"]
+OCTAL_DIGITS = OCTAL_DIGIT ( @[since: "ES2021"] '_'? OCTAL_DIGIT )* ;
+
+@[category: "fragment"]
+OCTAL_DIGIT = '0'..'7' ;
+
+@[category: "fragment"]
+HEX_INTEGER_LITERAL = '0' ( 'x' | 'X' ) HEX_DIGITS ;
+
+@[category: "fragment"]
+HEX_DIGITS = HEX_DIGIT ( @[since: "ES2021"] '_'? HEX_DIGIT )* ;
+
+@[category: "fragment"]
+HEX_DIGIT = '0'..'9' | 'a'..'f' | 'A'..'F' ;
+
+@[since: "ES2020", category: "fragment"]
+BIGINT_SUFFIX = 'n' ;
+
+(* ------------------------------------------------------------
+   8.2 String literals
+   Source: ECMA-262 §12.9.4
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015", category: "lexical"]
+STRING_LITERAL
+    = '"' DOUBLE_STRING_CHARACTER* '"'
+    | "'" SINGLE_STRING_CHARACTER* "'"
+    ;
+
+@[category: "fragment"]
+DOUBLE_STRING_CHARACTER
+    = ~( '"' | '\\' | LINE_TERMINATOR )
+    | '\\' ESCAPE_SEQUENCE
+    | LINE_CONTINUATION
+    ;
+
+@[category: "fragment"]
+SINGLE_STRING_CHARACTER
+    = ~( "'" | '\\' | LINE_TERMINATOR )
+    | '\\' ESCAPE_SEQUENCE
+    | LINE_CONTINUATION
+    ;
+
+@[category: "fragment"]
+LINE_CONTINUATION = '\\' LINE_TERMINATOR_SEQUENCE ;
+
+@[category: "fragment"]
+ESCAPE_SEQUENCE
+    = SINGLE_ESCAPE_CHARACTER
+    | '0' (?! DECIMAL_DIGIT)        (* null character, not octal *)
+    | HEX_ESCAPE_SEQUENCE
+    | UNICODE_ESCAPE_SEQUENCE
+    ;
+
+@[category: "fragment"]
+SINGLE_ESCAPE_CHARACTER
+    = "'" | '"' | '\\' | 'b' | 'f' | 'n' | 'r' | 't' | 'v'
+    ;
+
+@[category: "fragment"]
+HEX_ESCAPE_SEQUENCE = 'x' HEX_DIGIT HEX_DIGIT ;
+
+(* ------------------------------------------------------------
+   8.3 Template literals
+   Source: ECMA-262 §12.9.6
+
+   Template literals (backtick strings) with expression
+   interpolation via ${...}. Requires lexer mode switching.
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015", category: "lexical",
+  description: "Template literals with expression interpolation.
+    Lexically context-sensitive: tokens inside ${} follow normal
+    lexical rules. Requires lexer mode switching."]
+TEMPLATE
+    = NO_SUBSTITUTION_TEMPLATE
+    | TEMPLATE_HEAD
+    ;
+
+@[category: "fragment"]
+NO_SUBSTITUTION_TEMPLATE = '`' TEMPLATE_CHARACTERS? '`' ;
+
+@[category: "fragment"]
+TEMPLATE_HEAD = '`' TEMPLATE_CHARACTERS? "${" ;
+
+@[category: "fragment",
+  description: "Emitted after expression interpolation ends (}).
+    Lexer resumes template mode."]
+TEMPLATE_MIDDLE = '}' TEMPLATE_CHARACTERS? "${" ;
+
+@[category: "fragment",
+  description: "Emitted when template literal closes after final expression."]
+TEMPLATE_TAIL = '}' TEMPLATE_CHARACTERS? '`' ;
+
+@[category: "fragment"]
+TEMPLATE_CHARACTERS = TEMPLATE_CHARACTER+ ;
+
+@[category: "fragment"]
+TEMPLATE_CHARACTER
+    = '$' (?! '{')
+    | '\\' ESCAPE_SEQUENCE
+    | '\\' LINE_TERMINATOR_SEQUENCE     (* tagged templates *)
+    | LINE_TERMINATOR_SEQUENCE
+    | ~( '`' | '\\' | '$' | LINE_TERMINATOR )
+    ;
+
+(* ------------------------------------------------------------
+   8.4 Regular expression literals
+   Source: ECMA-262 §12.9.5
+
+   Regular expressions are lexically ambiguous with division.
+   The lexer must use parser context (regex_context predicate)
+   to determine whether / starts a regex or is division.
+   ------------------------------------------------------------ *)
+
+@[since: "ES2015", category: "lexical",
+  description: "Regular expression literal — lexically ambiguous with division.
+    The lexer must use parser context feedback to disambiguate."]
+REGULAR_EXPRESSION_LITERAL
+    = {? regex_context ?} '/' REGULAR_EXPRESSION_BODY '/' REGULAR_EXPRESSION_FLAGS
+    ;
+
+@[category: "fragment"]
+REGULAR_EXPRESSION_BODY = REGULAR_EXPRESSION_FIRST_CHAR REGULAR_EXPRESSION_CHAR* ;
+
+@[category: "fragment"]
+REGULAR_EXPRESSION_FIRST_CHAR
+    = ~( '*' | '\\' | '/' | '[' | LINE_TERMINATOR )
+    | REGULAR_EXPRESSION_BACKSLASH_SEQUENCE
+    | REGULAR_EXPRESSION_CLASS
+    ;
+
+@[category: "fragment"]
+REGULAR_EXPRESSION_CHAR
+    = ~( '\\' | '/' | '[' | LINE_TERMINATOR )
+    | REGULAR_EXPRESSION_BACKSLASH_SEQUENCE
+    | REGULAR_EXPRESSION_CLASS
+    ;
+
+@[category: "fragment"]
+REGULAR_EXPRESSION_BACKSLASH_SEQUENCE
+    = '\\' ~LINE_TERMINATOR ;
+
+@[category: "fragment"]
+REGULAR_EXPRESSION_CLASS
+    = '[' REGULAR_EXPRESSION_CLASS_CHAR* ']' ;
+
+@[category: "fragment"]
+REGULAR_EXPRESSION_CLASS_CHAR
+    = ~( ']' | '\\' | LINE_TERMINATOR )
+    | REGULAR_EXPRESSION_BACKSLASH_SEQUENCE
+    ;
+
+@[category: "fragment",
+  description: "Regex flags. ES2015: gimuy, ES2018: s (dotAll),
+    ES2022: d (indices), ES2024: v (unicodeSets)"]
+REGULAR_EXPRESSION_FLAGS = IDENTIFIER_PART* ;
+
+(* ============================================================
+   9. PUNCTUATORS
+   Source: ECMA-262 §12.8
+   ============================================================ *)
+
+@[since: "ES2015", category: "lexical"]
+PUNCTUATOR
+    (* Grouping *)
+    = '{'  | '}'  | '('  | ')'  | '['  | ']'
+
+    (* Member access, spread, semicolon, comma *)
+    | '.'  | "..."  | ';'  | ','
+
+    (* Comparison *)
+    | '<'  | '>'  | "<=" | ">="
+
+    (* Equality *)
+    | "==" | "!=" | "===" | "!=="
+
+    (* Arithmetic *)
+    | '+'  | '-'  | '*'  | '%'  | "**"
+    | "++" | "--"
+
+    (* Shift *)
+    | "<<" | ">>" | ">>>"
+
+    (* Bitwise *)
+    | '&'  | '|'  | '^'  | '~'
+
+    (* Logical *)
+    | '!'  | "&&" | "||"
+
+    (* Nullish coalescing *)
+    | @[since: "ES2020"] "??"
+
+    (* Ternary, optional chaining *)
+    | '?'
+    | @[since: "ES2020"] "?."
+
+    (* Assignment *)
+    | '='  | "+=" | "-=" | "*=" | "%=" | "**="
+    | "<<=" | ">>=" | ">>>="
+    | "&=" | "|=" | "^="
+    | @[since: "ES2021"] "&&=" | @[since: "ES2021"] "||=" | @[since: "ES2021"] "??="
+
+    (* Arrow and other *)
+    | "=>"
+    | '/'  | "/="
+    | ':'
+
+    (* Hashbang *)
+    | '#'
+    ;
+
+(* ============================================================
+   10. AUTOMATIC SEMICOLON INSERTION
+   Source: ECMA-262 §12.10
+
+   ECMAScript uses automatic semicolon insertion (ASI).
+   A semicolon is automatically inserted when:
+   1. A LineTerminator or } is encountered where the grammar
+      requires a semicolon
+   2. End of input is reached and the parser cannot parse
+      the input as a complete program
+   3. A "restricted production" is encountered and a
+      LineTerminator appears where [no LineTerminator here]
+      is specified
+
+   Restricted productions include:
+     - PostfixExpression (no LT before ++ or --)
+     - ContinueStatement (no LT before label)
+     - BreakStatement (no LT before label)
+     - ReturnStatement (no LT before expression)
+     - ThrowStatement (no LT before expression)
+     - YieldExpression (no LT before * or expression)
+     - ArrowFunction (no LT before =>)
+
+   This is inherently context-sensitive and cannot be
+   expressed in a context-free grammar.
+   ============================================================ *)
+
+@[since: "ES2015", category: "contextual",
+  description: "Automatic semicolon insertion — context-sensitive.
+    See ECMA-262 §12.10 for the three ASI rules.
+    [no LineTerminator here] restrictions require tracking
+    newlines between tokens."]
+AUTO_SEMICOLON = {? no_line_terminator ?} ;
+
+(* ============================================================
+   11. VERSION HISTORY — LEXICAL ADDITIONS BY ES VERSION
+
+   This section is non-normative. It summarizes the lexical
+   changes across ECMAScript editions to support grammar diffing.
+
+   ES2015 (ES6): Base modern lexical grammar.
+       Template literals (``), binary (0b) and octal (0o)
+       literals, Unicode code point escapes (\u{}), symbols,
+       let/const, arrow =>, spread ..., for-of, class,
+       import/export, yield, destructuring.
+
+   ES2016: No lexical changes.
+       (Exponentiation operator ** — punctuator addition)
+
+   ES2017:
+       - async contextual keyword
+       Source: TC39 async/await proposal
+
+   ES2018:
+       - Regex dotAll flag 's'
+       - Regex named capture groups
+       - Regex Unicode property escapes \p{...}
+       - Regex lookbehind assertions
+
+   ES2019:
+       - Optional catch binding (syntactic, not lexical)
+       - JSON superset (U+2028, U+2029 allowed in strings)
+
+   ES2020:
+       - BigInt literals (suffix 'n')
+       - Nullish coalescing operator ??
+       - Optional chaining ?.
+       - Private identifiers (#name)
+       - import.meta (meta contextual keyword)
+       Source: TC39 proposals
+
+   ES2021:
+       - Numeric separators (_) in all numeric literals
+       - Logical assignment operators &&= ||= ??=
+       Source: TC39 proposals
+
+   ES2022:
+       - Class fields (public and private)
+       - Class static blocks
+       - Regex /d flag (match indices)
+       - Top-level await (syntactic context change)
+       Source: TC39 proposals
+
+   ES2023:
+       - Hashbang comments (#!)
+       Source: TC39 proposal
+
+   ES2024:
+       - Regex /v flag (Unicode Sets)
+       Source: TC39 proposal
+   ============================================================ *)
