@@ -1,64 +1,28 @@
 # Grammar Coverage
 
-This document tracks grammar rule coverage for each language and version.
+This document tracks grammar coverage status across all languages.
 
----
+## Coverage Matrix
 
-## C#
+| Language | Format | Conformance | Versions Covered | Lexical | Syntactic | Notes |
+|----------|--------|-------------|------------------|---------|-----------|-------|
+| C# | **XEBNF** | **Level 1** | 1.0 – 14.0 | ~907 lines | ~2,308 lines | Comprehensive, version-annotated |
+| Python | EBNF | Level 0 | 3.13 | ~21 lines | ~33 lines | Structural placeholder |
+| JavaScript | EBNF | Level 0 | ES2024 | ~46 lines | ~59 lines | Structural placeholder |
+| Java | EBNF | Level 0 | 21 | ~17 lines | ~36 lines | Structural placeholder |
+| Go | EBNF | Level 0 | 1.22 | ~15 lines | ~34 lines | Structural placeholder |
+| Turtle | EBNF | Level 0 | 1.1 | — | ~55 lines | Single grammar file |
+| SPARQL | EBNF | Level 1 | 1.1 | — | ~244 lines | Most complete legacy grammar |
 
-| Version | Lexical Coverage | Syntax Coverage | Notes                          |
-|---------|------------------|------------------|--------------------------------|
-| v12     | Partial           | Partial          | Minimal C# core                |
-| v13     | Partial           | Partial          | Adds raw strings               |
-| v14     | Partial           | Partial          | Adds `required`, `scoped` etc. |
+## Conformance Levels
 
----
+See [conformance.md](conformance.md) for level definitions.
 
-## Python
+## Migration Status
 
-| Version | Lexical Coverage | Syntax Coverage | Notes                          |
-|---------|------------------|------------------|--------------------------------|
-| v3.12   | Partial           | Partial          | Core constructs only           |
-| v3.13   | Partial           | Partial          | Pattern matching refinements   |
+C# is the first language fully migrated to XEBNF. Other languages retain their legacy EBNF files and are candidates for XEBNF rewrite. Priority candidates:
 
----
-
-## JavaScript (ECMAScript)
-
-| Version | Lexical Coverage | Syntax Coverage | Notes                          |
-|---------|------------------|------------------|--------------------------------|
-| v2022   | Partial           | Partial          | Basic JS syntax                |
-| v2023   | Partial           | Partial          | Adds `template-literals`       |
-| v2024   | Partial           | Partial          | Adds `do` expressions          |
-
----
-
-## Java
-
-| Version | Lexical Coverage | Syntax Coverage | Notes                          |
-|---------|------------------|------------------|--------------------------------|
-| v21     | Minimal           | Minimal          | Basic class and method structure |
-
----
-
-## Go
-
-| Version | Lexical Coverage | Syntax Coverage | Notes                          |
-|---------|------------------|------------------|--------------------------------|
-| v1.22   | Minimal           | Minimal          | Based on go.dev/spec           |
-
----
-
-## Turtle
-
-| Version | Lexical Coverage | Syntax Coverage | Notes                          |
-|---------|------------------|------------------|--------------------------------|
-| v1.1    | Partial           | Partial          | W3C grammar extracted and modularized |
-
----
-
-## SPARQL
-
-| Version | Lexical Coverage | Syntax Coverage | Notes                          |
-|---------|------------------|------------------|--------------------------------|
-| v1.1    | Partial           | Partial          | Based on sparql11-query spec |
+1. **SPARQL** — already 244 lines, small language, high relevance to Sky Omega
+2. **Turtle** — small, single-version, straightforward conversion
+3. **Python** — large language, PEG grammar available as authoritative source
+4. **JavaScript** — large language, ECMA-262 appendix grammar available
