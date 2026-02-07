@@ -1,78 +1,87 @@
 # grammar-meta-standard
 
-A unified grammar repository for modern programming languages and DSLs, using a clear, consistent XEBNF style.
+A unified grammar repository for programming languages and DSLs, using [XEBNF](meta/XEBNF-SPEC.md) — an extended EBNF notation with version annotations, Unicode support, semantic predicates, and conformance levels.
 
 ---
 
-## 🎯 Purpose
+## Purpose
 
-To provide well-structured, versioned grammars for real-world programming languages and DSLs in a common `.ebnf` format, suitable for:
+Machine-readable, versioned formal grammars for:
 
-- Code generation
-- Syntax highlighting
-- Tooling and linters
-- Static analysis
-- DSL development
+- Grammar-guided code generation (LLM-assisted and traditional)
+- Syntax-valid output verification
+- Language version comparison and migration analysis
+- Tooling: linters, syntax highlighters, static analyzers
 - RDF/SPARQL processing and semantic tooling
 
 ---
 
-## 📚 Supported Languages
+## Supported Languages
 
-| Language     | Versions                     | Coverage   |
-|--------------|------------------------------|------------|
-| C#           | v12, v13, v14                 | Partial    |
-| Python       | v3.12, v3.13                  | Partial    |
-| JavaScript   | v2022, v2023, v2024 (ECMAScript) | Partial |
-| Java         | v21                           | Minimal    |
-| Go           | v1.22                         | Minimal    |
-| Turtle       | v1.1                          | Partial    |
-| SPARQL       | v1.1                          | Partial    |
+| Language | Format | Versions | Conformance | Lines |
+|----------|--------|----------|-------------|-------|
+| **C#** | XEBNF | 1.0 – 14.0 | Level 1 | 3,215 |
+| Python | EBNF | 3.13 | Level 0 | 54 |
+| JavaScript | EBNF | ES2024 | Level 0 | 105 |
+| Java | EBNF | 21 | Level 0 | 53 |
+| Go | EBNF | 1.22 | Level 0 | 49 |
+| Turtle | EBNF | 1.1 | Level 0 | 55 |
+| SPARQL | EBNF | 1.1 | Level 1 | 244 |
 
-See [meta/languages.md](meta/languages.md) and [meta/coverage.md](meta/coverage.md) for more.
+See [meta/languages.md](meta/languages.md) and [meta/coverage.md](meta/coverage.md) for details.
 
 ---
 
-## 📐 Grammar Format
+## Grammar Format
 
-All `.ebnf` files follow the shared convention in [STYLE.md](STYLE.md). Files are split per version into:
+### XEBNF (`.xebnf`)
 
-- `lexical.ebnf` – character-level tokens
-- `syntax.ebnf` – language-level structure
+XEBNF extends ISO/IEC 14977 EBNF with features real grammars need:
 
-Each version is stored under:
+- **Version annotations**: `@[since: "11.0"]` — embed version history in the grammar itself
+- **Unicode character classes**: `\p{L}`, `\p{Nd}` — specify identifier rules precisely
+- **Semantic predicates**: `{? in_async ?}` — document context-sensitive constraints
+- **Conformance levels**: 0 (Structural) through 3 (Contextually Complete)
+- **Conservative guarantee**: grammar-valid implies compiler-valid
+
+Full specification: [meta/XEBNF-SPEC.md](meta/XEBNF-SPEC.md)
+
+### Legacy EBNF (`.ebnf`)
+
+Languages not yet migrated to XEBNF retain structural EBNF files. These are candidates for comprehensive rewrite.
+
+---
+
+## Repository Layout
 
 ```
-grammars/<language>/<version>/
+grammars/<language>/
+├── README.md            # Sources, version coverage, known gaps
+├── lexical.xebnf        # Token-level grammar (all versions)
+├── syntax.xebnf         # Structure-level grammar (all versions)
+└── grammar.xebnf        # Combined (for small languages)
+```
+
+Version information lives in the grammar files via `@[since:]` annotations — not in the filesystem. To extract what changed in C# 11:
+
+```bash
+grep 'since: "11.0"' grammars/csharp/*.xebnf
 ```
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-We welcome contributions to expand and refine existing grammars, and especially to add support for additional languages.
+We welcome contributions to expand and refine existing grammars, and to add support for additional languages. See <CONTRIBUTING.md>.
 
-### ✅ Examples of valuable future additions:
+Priority opportunities:
 
-- Haskell
-- F#
-- C and C++
-- Lisp dialects (Scheme, Common Lisp)
-- Prolog
-- Narrow but expressive DSLs (e.g. templating languages, configuration syntaxes)
-
-If your favorite language isn't listed — you're warmly invited to add it!
+- **XEBNF migration** of existing EBNF grammars (Python, JavaScript, SPARQL)
+- **New languages**: Rust, F#, Haskell, SQL, C/C++
+- **Tooling**: version extraction, grammar validation, conformance testing
 
 ---
 
-## 📦 Tools
+## License
 
-- See `tools/` for grammar diffing and transformation support.
-- All grammars are designed to be tool-agnostic and readable by both humans and machines.
-
----
-
-## 🔄 License
-
-MIT License — see [LICENSE](LICENSE) for details.
-
+MIT License — see <LICENSE>.
