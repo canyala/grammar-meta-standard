@@ -39,7 +39,6 @@ Existing `.ebnf` files use the W3C-inspired style:
 
 - Grammar files: `grammars/<language>/`
 - Language changelogs: `meta/changelog-<language>.md`
-- Tooling: `tools/`
 
 ## Maintainer
 

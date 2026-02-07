@@ -14,7 +14,6 @@ A unified grammar repository for programming languages and DSLs. Grammars are wr
 - `meta/coverage.md` — grammar coverage tracking
 - `meta/languages.md` — supported languages and status
 - `meta/changelog-<lang>.md` — per-language changelogs
-- `tools/` — C# .NET tooling (source generator, string literal transformer) and a Python grammar-diff placeholder
 
 ## Grammar Formats
 
@@ -33,21 +32,6 @@ A unified grammar repository for programming languages and DSLs. Grammars are wr
 - `|` for alternation, whitespace for sequencing (no commas)
 - `(* ... *)` comments
 - Literals in single or double quotes
-
-## Build System
-
-The .NET solution (`grammar-meta-standard.sln`) contains:
-- `tools/EbnfSourceGenerator/` — C# source generator for EBNF
-- `tools/EbnfSourceGenerator/EbnfExampleHost.csproj` — example host project
-- `tools/csharp/StringLiteralTransformer/Tests.csproj` — unit tests for string literal handling
-
-```bash
-# Build all .NET projects
-dotnet build grammar-meta-standard.sln
-
-# Run StringLiteralTransformer tests
-dotnet test tools/csharp/StringLiteralTransformer/Tests.csproj
-```
 
 ## Grammar File Conventions
 
