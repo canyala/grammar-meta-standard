@@ -4,18 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A unified grammar repository for programming languages and DSLs. Grammars are written in EBNF (legacy) or XEBNF (the newer extended format with version annotations, Unicode support, and conformance levels). The project serves code generation, syntax highlighting, tooling, and language analysis use cases.
+A unified grammar repository for programming languages and DSLs. Grammars are written in XEBNF (preferred) or legacy EBNF. XEBNF extends EBNF with version annotations, Unicode support, semantic predicates, and conformance levels. The project serves code generation, syntax highlighting, tooling, and language analysis use cases.
 
 ## Repository Layout
 
-- `grammars/<language>/<version>/` — grammar files organized by language and version (legacy layout, being migrated)
-- `grammars/xebnf/v0.1/XEBNF-SPEC.md` — the XEBNF specification
-- `meta/` — metadata: changelogs, coverage tracking, language lists, schema
+- `grammars/<language>/` — grammar files organized by language (flat layout, no version subdirectories)
+- `meta/XEBNF-SPEC.md` — the XEBNF specification
+- `meta/conformance.md` — conformance level definitions
+- `meta/coverage.md` — grammar coverage tracking
+- `meta/languages.md` — supported languages and status
+- `meta/changelog-<lang>.md` — per-language changelogs
 - `tools/` — C# .NET tooling (source generator, string literal transformer) and a Python grammar-diff placeholder
-
-## Active Migration (RESTRUCTURE-PLAN.md)
-
-The repo is transitioning from version-per-directory (`grammars/<lang>/<version>/`) to language-per-directory with XEBNF as the canonical format. XEBNF embeds version info inline via `@[since: "X.Y"]` annotations, making version directories redundant. C# v14 is the pilot — its grammars are already in `.xebnf` format. Other languages remain as legacy `.ebnf` stubs.
 
 ## Grammar Formats
 
@@ -28,13 +27,12 @@ The repo is transitioning from version-per-directory (`grammars/<lang>/<version>
 - Conformance levels: 0 (Structural) → 3 (Contextually Complete)
 - Conservative guarantee: grammar-valid implies compiler-valid
 
-### Legacy EBNF (`.ebnf`) — W3C-inspired style per STYLE.md
-- `::=` for rule definitions (not `=`, not `←`)
+### Legacy EBNF (`.ebnf`)
+- `=` for rule definitions (not `::=`)
 - `{ ... }` repetition, `[ ... ]` optional, `( ... )` grouping
 - `|` for alternation, whitespace for sequencing (no commas)
 - `(* ... *)` comments
 - Literals in single or double quotes
-- No ISO special-sequences (`? ... ?`)
 
 ## Build System
 
@@ -53,14 +51,16 @@ dotnet test tools/csharp/StringLiteralTransformer/Tests.csproj
 
 ## Grammar File Conventions
 
-- Multi-version languages split into `lexical.ebnf`/`.xebnf` (tokens) and `syntax.ebnf`/`.xebnf` (structure)
+- Multi-version languages split into `lexical.xebnf`/`.ebnf` (tokens) and `syntax.xebnf`/`.ebnf` (structure)
 - Single-version small languages (Turtle, SPARQL) use a combined `grammar.ebnf`
+- Each language directory has a `README.md` with sources, coverage, and migration status
 - Grammar changes are recorded in `meta/changelog-<lang>.md`
 - Coverage status tracked in `meta/coverage.md`
+- Version information is embedded in grammar files via `@[since:]` annotations, not in the filesystem
 
 ## Key Reference Files
 
-- `STYLE.md` — canonical EBNF formatting rules (for legacy `.ebnf` files)
-- `RESTRUCTURE-PLAN.md` — detailed migration plan with execution steps
-- `grammars/xebnf/v0.1/XEBNF-SPEC.md` — full XEBNF specification
-- `meta/schema.md` — YAML metadata schema for grammar files
+- `meta/XEBNF-SPEC.md` — full XEBNF specification
+- `meta/conformance.md` — conformance level definitions
+- `meta/coverage.md` — grammar coverage matrix
+- `meta/languages.md` — supported languages and layout
