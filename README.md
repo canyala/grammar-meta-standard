@@ -25,8 +25,8 @@ Machine-readable, versioned formal grammars for:
 | **Python** | XEBNF | 3.6 – 3.13 | Level 1 | 1,642 |
 | **Java** | XEBNF | 5 – 21 | Level 1 | 1,884 |
 | **JavaScript** | XEBNF | ES2015 – ES2024 | Level 1 | 1,767 |
-| Turtle | EBNF | 1.1 | Level 0 | 55 |
-| SPARQL | EBNF | 1.1 | Level 1 | 244 |
+| Turtle | EBNF | 1.1 | Level 2 | 55 |
+| SPARQL | EBNF | 1.1 | Level 2 | 244 |
 
 See [meta/languages.md](meta/languages.md) and [meta/coverage.md](meta/coverage.md) for details.
 
@@ -48,7 +48,7 @@ Full specification: [meta/XEBNF-SPEC.md](meta/XEBNF-SPEC.md)
 
 ### Legacy EBNF (`.ebnf`)
 
-Languages not yet migrated to XEBNF retain structural EBNF files. These are candidates for comprehensive rewrite.
+Languages not yet migrated to XEBNF use legacy EBNF files. These may be syntactically complete (Level 2) but cannot reach Level 3 without XEBNF features. They are candidates for XEBNF rewrite.
 
 ---
 
