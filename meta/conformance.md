@@ -30,7 +30,7 @@ Every `.xebnf` file declares its conformance level in the `@grammar` header:
 }
 ```
 
-Legacy `.ebnf` files that predate XEBNF are treated as Level 0 (Structural).
+Legacy `.ebnf` files default to Level 0 (Structural) unless they demonstrably cover the reference specification, in which case they may claim up to Level 2. Level 3 requires XEBNF features (semantic predicates, annotations) and is not achievable in legacy EBNF.
 
 ## Gap Documentation
 

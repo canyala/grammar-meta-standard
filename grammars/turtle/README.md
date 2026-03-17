@@ -1,6 +1,6 @@
 # Turtle Grammar
 
-## Status: Legacy EBNF (Level 0 — Structural)
+## Status: Legacy EBNF (Level 2 — Syntactically Complete)
 
 | File | Lines | Version | Notes |
 |------|-------|---------|-------|

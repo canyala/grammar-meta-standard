@@ -9,8 +9,8 @@
 | Python | `grammars/python/` | XEBNF | 3.6 – 3.13 | Level 1 | [Python Language Reference](https://docs.python.org/3/reference/) |
 | Java | `grammars/java/` | XEBNF | 5 – 21 | Level 1 | [Java Language Specification](https://docs.oracle.com/javase/specs/) |
 | JavaScript | `grammars/javascript/` | XEBNF | ES2015 – ES2024 | Level 1 | [ECMA-262](https://tc39.es/ecma262/) |
-| Turtle | `grammars/turtle/` | EBNF | 1.1 | Level 0 | [W3C Turtle](https://www.w3.org/TR/turtle/) |
-| SPARQL | `grammars/sparql/` | EBNF | 1.1 | Level 1 | [W3C SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) |
+| Turtle | `grammars/turtle/` | EBNF | 1.1 | Level 2 | [W3C Turtle](https://www.w3.org/TR/turtle/) |
+| SPARQL | `grammars/sparql/` | EBNF | 1.1 | Level 2 | [W3C SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) |
 
 ## Grammar Format
 

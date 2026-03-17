@@ -1,6 +1,6 @@
 # SPARQL Grammar
 
-## Status: Legacy EBNF (Level 1 — Partial)
+## Status: Legacy EBNF (Level 2 — Syntactically Complete)
 
 | File | Lines | Version | Notes |
 |------|-------|---------|-------|

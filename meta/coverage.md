@@ -11,8 +11,8 @@ This document tracks grammar coverage status across all languages.
 | Python | **XEBNF** | **Level 1** | 3.6 – 3.13 | ~658 lines | ~984 lines | Comprehensive, version-annotated |
 | Java | **XEBNF** | **Level 1** | 5 – 21 | ~575 lines | ~1,309 lines | Comprehensive, version-annotated |
 | JavaScript | **XEBNF** | **Level 1** | ES2015 – ES2024 | ~615 lines | ~1,152 lines | Comprehensive, version-annotated |
-| Turtle | EBNF | Level 0 | 1.1 | — | ~55 lines | Single grammar file |
-| SPARQL | EBNF | Level 1 | 1.1 | — | ~244 lines | Most complete legacy grammar |
+| Turtle | EBNF | Level 2 | 1.1 | — | ~55 lines | Single grammar file |
+| SPARQL | EBNF | Level 2 | 1.1 | — | ~244 lines | Complete W3C grammar |
 
 ## Conformance Levels
 
