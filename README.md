@@ -59,7 +59,7 @@ grammars/<language>/
 ├── README.md            # Sources, version coverage, known gaps
 ├── lexical.xebnf        # Token-level grammar (all versions)
 ├── syntax.xebnf         # Structure-level grammar (all versions)
-└── grammar.xebnf        # Combined (for small languages)
+└── grammar.ebnf         # Combined (for small/single-version languages)
 ```
 
 Version information lives in the grammar files via `@[since:]` annotations — not in the filesystem. To extract what changed in C# 11:

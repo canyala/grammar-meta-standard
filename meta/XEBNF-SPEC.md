@@ -457,7 +457,7 @@ An XEBNF grammar file has the following top-level structure:
     version: "14.0" ;
     family: "csharp" ;
     spec: "ECMA-334" ;
-    uri: "https://github.com/canyala/grammar-meta-standard/grammars/csharp/v14" ;
+    uri: "https://github.com/dotnet/csharpstandard" ;
 }
 
 @predicates {

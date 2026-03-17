@@ -1,6 +1,6 @@
 # XEBNF Conformance Levels
 
-Extracted from [XEBNF-SPEC.md](XEBNF-SPEC.md) §7 for contributor reference.
+Extracted from [XEBNF-SPEC.md](XEBNF-SPEC.md) §12 for contributor reference.
 
 ---
 

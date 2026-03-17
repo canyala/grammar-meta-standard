@@ -23,7 +23,7 @@ Key requirements:
 ### Legacy EBNF Grammars
 
 Existing `.ebnf` files use the W3C-inspired style:
-- `=` for rule definitions (not `::=`)
+- `::=` for rule definitions
 - `{ ... }` for repetition, `[ ... ]` for optional
 - `(* ... *)` for comments
 - No commas between sequence elements

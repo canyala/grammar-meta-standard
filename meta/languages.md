@@ -16,7 +16,7 @@
 
 **XEBNF grammars** (`.xebnf`) encode version information inline via `@[since:]` annotations. A single file contains all versions. See [XEBNF-SPEC.md](XEBNF-SPEC.md).
 
-**Legacy EBNF grammars** (`.ebnf`) are structural placeholders from before the XEBNF migration. They cover a single version and use the convention described in the repository's original STYLE.md (now superseded by the XEBNF spec).
+**Legacy EBNF grammars** (`.ebnf`) are structural placeholders from before the XEBNF migration. They cover a single version using W3C EBNF conventions.
 
 ## Layout
 
@@ -25,7 +25,7 @@ grammars/<language>/
 ├── README.md           # Language-specific documentation
 ├── lexical.xebnf       # Lexical grammar (XEBNF) — or lexical.ebnf (legacy)
 ├── syntax.xebnf        # Syntactic grammar (XEBNF) — or syntax.ebnf (legacy)
-└── grammar.xebnf       # Combined grammar for small languages (optional)
+└── grammar.ebnf        # Combined grammar for small/single-version languages (optional)
 ```
 
 ## Planned Languages

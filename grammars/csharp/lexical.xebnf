@@ -17,7 +17,7 @@
     version: "14.0" ;
     family: "csharp" ;
     spec: "ECMA-334" ;
-    uri: "https://github.com/canyala/grammar-meta-standard/grammars/csharp/v14" ;
+    uri: "https://github.com/dotnet/csharpstandard" ;
     conformance: 1 ;
     conformance_notes: "Lexical grammar covers tokens, literals, keywords, 
         operators, and comments. Preprocessor directives use semantic 

@@ -9,7 +9,7 @@
      - Microsoft Learn C# language reference
      - C# feature specifications (csharplang/proposals)
    
-   Companion to: csharp-v14-lexical.xebnf
+   Companion to: lexical.xebnf
    
    Conformance: Level 1 (Partial)
    Known gaps documented inline.
@@ -20,7 +20,7 @@
     version: "14.0" ;
     family: "csharp" ;
     spec: "ECMA-334" ;
-    uri: "https://github.com/canyala/grammar-meta-standard/grammars/csharp/v14" ;
+    uri: "https://github.com/dotnet/csharpstandard" ;
     conformance: 1 ;
     conformance_notes: "Syntactic grammar covers types, patterns, expressions, 
         statements, declarations, and members through C# 14. 
@@ -31,7 +31,7 @@
 }
 
 @imports {
-    lexical: "./csharp-v14-lexical.xebnf" ;
+    lexical: "./lexical.xebnf" ;
 }
 
 @predicates {

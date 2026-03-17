@@ -27,7 +27,7 @@ A unified grammar repository for programming languages and DSLs. Grammars are wr
 - Conservative guarantee: grammar-valid implies compiler-valid
 
 ### Legacy EBNF (`.ebnf`)
-- `=` for rule definitions (not `::=`)
+- `::=` for rule definitions
 - `{ ... }` repetition, `[ ... ]` optional, `( ... )` grouping
 - `|` for alternation, whitespace for sequencing (no commas)
 - `(* ... *)` comments
