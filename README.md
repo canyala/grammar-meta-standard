@@ -1,5 +1,5 @@
-<div align=”center”>
-  <img src=”assets/edgar-badge.svg” alt=”Edgar” width=”200”>
+<div align="center">
+  <img src="assets/edgar-badge.svg" alt="Edgar" width="200">
 </div>
 
 # grammar-meta-standard
