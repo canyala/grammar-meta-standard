@@ -1,3 +1,7 @@
+<div align=”center”>
+  <img src=”assets/edgar-badge.svg” alt=”Edgar” width=”200”>
+</div>
+
 # grammar-meta-standard
 
 A unified grammar repository for programming languages and DSLs, using [XEBNF](meta/XEBNF-SPEC.md) — an extended EBNF notation with version annotations, Unicode support, semantic predicates, and conformance levels.
